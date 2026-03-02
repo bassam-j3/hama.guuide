@@ -1,0 +1,61 @@
+services:
+    hamaguide.db:
+        image: "postgis/postgis:16-3.5-alpine"
+        environment: 
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: guide-db
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+        ports:
+            - "5432:5432"
+        volumes:
+            - ~/azero/hama-guide/postgres:/var/lib/postgresql/data
+    hamaguide.rabbitmq:
+        image: "rabbitmq:3-management"
+        environment:
+            RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+        healthcheck:
+            test: ["CMD", "rabbitmq-diagnostics", "ping"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        ports:
+            - "5672:5672"
+            - "15672:15672"
+        volumes:
+            - ~/azero/hama-guide/rabbitmq:/var/lib/rabbitmq
+    hamaguide.api:
+        image: azero77/hamaguideapi:latest
+        depends_on:
+            hamaguide.db:
+                condition: service_healthy
+            hamaguide.rabbitmq:
+                condition: service_healthy
+        ports:
+            - "5001:80"
+        environment:
+            ConnectionStrings__guide-db: ${POSTGRES_CONNECTION_STRING}
+            ConnectionStrings__rabbitmq: ${RABBITMQ_CONNECTION_STRING}
+            ASPNETCORE_URLS: http://+:80
+            ASONETCORE_ENVIRONMENT: Development
+        volumes:
+            - ~/azero/hama-guide/Files:/app/Files
+    hamaguide.identity:
+        image: azero77/hamaguideidentity:latest
+        environment:
+            ASPNETCORE_URLS: http://+:80
+            ConnectionStrings__guide-db: ${POSTGRES_CONNECTION_STRING}
+            ConnectionStrings__rabbitmq: ${RABBITMQ_CONNECTION_STRING}
+            ASONETCORE_ENVIRONMENT: Development
+        depends_on:
+            hamaguide.db:
+                condition: service_healthy
+            hamaguide.rabbitmq:
+                condition: service_healthy
+        ports:
+            - "5002:80"

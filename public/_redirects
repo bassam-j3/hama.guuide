@@ -1,0 +1,7 @@
+/api/* http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001/api/:splat  200!
+/Admin/* http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001/Admin/:splat  200!
+/Files/* http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001/Files/:splat  200!
+/connect/* http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001/connect/:splat  200!
+/.well-known/* http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001/.well-known/:splat  200!
+/graphql/* http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001/graphql/:splat  200!
+/* /index.html  200

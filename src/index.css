@@ -1,0 +1,82 @@
+:root {
+  /* Design Tokens - المتغيرات الأساسية */
+  --primary-green: #198754;
+  --dark-bg: #212529;
+  --sidebar-width: 260px;
+  --transition-speed: 0.3s;
+  --light-gray: #f8f9fa;
+}
+
+/* Global Reset */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--light-gray);
+  direction: rtl; /* دعم اللغة العربية عالمياً */
+}
+
+/* تخصيص السكرول بار ليبدو احترافياً */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px; /* للسكرول الأفقي في الجداول */
+}
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 10px;
+}
+
+/* Sidebar & Layout Responsive Styles 🚀 */
+.sidebar-wrapper { 
+  position: fixed; 
+  right: 0; 
+  top: 0; 
+  width: var(--sidebar-width); 
+  height: 100vh; 
+  z-index: 1050; 
+  transition: transform var(--transition-speed) ease-in-out; 
+}
+
+.main-wrapper { 
+  transition: margin-right var(--transition-speed) ease-in-out; 
+  min-height: 100vh; 
+  display: flex; 
+  flex-direction: column; 
+}
+
+.sidebar-overlay { 
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+  background: rgba(0,0,0,0.5); z-index: 1040; 
+  opacity: 0; visibility: hidden; transition: 0.3s; 
+}
+
+/* شاشات الجوال والآيباد */
+@media (max-width: 991.98px) {
+  .sidebar-wrapper { transform: translateX(100%); } /* إخفاء لليمين في RTL */
+  .sidebar-wrapper.open { transform: translateX(0); } /* إظهار عند الفتح */
+  .main-wrapper { margin-right: 0 !important; }
+  .sidebar-overlay.open { opacity: 1; visibility: visible; }
+}
+
+/* شاشات الكمبيوتر */
+@media (min-width: 992px) {
+  .sidebar-wrapper { transform: translateX(0); }
+  .main-wrapper { margin-right: var(--sidebar-width); }
+}
+
+.nav-icon-hover { transition: all 0.2s ease; cursor: pointer; }
+.nav-icon-hover:hover { background-color: #f0f2f5; color: var(--primary-green) !important; }
+.cursor-pointer { cursor: pointer; }
+.spinner-border { animation-duration: 0.75s; }
+
+/* Sidebar Scrollbar Styling */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+
+.hover-bg-dark:hover { background-color: rgba(255, 255, 255, 0.05); color: #fff !important; }
+.hover-text-white:hover { color: #fff !important; }
+html, body {
+  overflow-x: hidden; /* يمنع ظهور شريط التمرير الأفقي المزعج في الجوال */
+  width: 100%;
+}
