@@ -1,11 +1,17 @@
 import axios from 'axios';
-import toast from 'react-hot-toast'; // 🚀 استيراد الإشعارات
+import toast from 'react-hot-toast';
 
-const API_BASE = '/api'; 
-const GRAPHQL_BASE = '/graphql';
+// 🚀 الكود الذكي للتفريق بين بيئة التطوير والإنتاج
+const isDev = import.meta.env.DEV;
+const AWS_SERVER_URL = "http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001"; // ملاحظة هامة بالأسفل حول الـ HTTP
+
+const API_BASE = isDev ? '/api' : `${AWS_SERVER_URL}/api`; 
+const GRAPHQL_BASE = isDev ? '/graphql' : `${AWS_SERVER_URL}/graphql`;
+
 const TIMEOUT_DURATION = 60000; 
-
 const STORAGE_KEY = "oidc.user:hama.guide:admin"; 
+
+// ... (باقي الملف يبقى كما هو تماماً بدون تغيير) ...
 
 const axiosInstance = axios.create({
   baseURL: API_BASE, 
@@ -77,10 +83,17 @@ axiosInstance.interceptors.response.use(
 
 export const getImageUrl = (path) => {
   if (!path) return '/placeholder.png';
+  
+  // استدعاء رابط الباك-إند
+  const AWS_SERVER_URL = "http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001";
+  
+  // تنظيف المسار من أي روابط قديمة لضمان عدم تكرار الرابط
   const AWS_HOST = "ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001";
   let cleanPath = path.replace(`http://${AWS_HOST}`, '').replace(`https://${AWS_HOST}`, '');
   if (!cleanPath.startsWith('/')) cleanPath = `/${cleanPath}`;
-  return cleanPath; 
+  
+  // ✅ إرجاع الرابط كاملاً مشيراً إلى سيرفر AWS
+  return `${AWS_SERVER_URL}${cleanPath}`; 
 };
 
 export default axiosInstance;
