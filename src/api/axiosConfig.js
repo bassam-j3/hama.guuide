@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 
 // 🚀 الكود الذكي للتفريق بين بيئة التطوير والإنتاج
 const isDev = import.meta.env.DEV;
-const AWS_SERVER_URL = "http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001"; // ملاحظة هامة بالأسفل حول الـ HTTP
+const AWS_SERVER_URL = "http://hamaguide-alb-1617100741.eu-north-1.elb.amazonaws.com"; // ملاحظة هامة بالأسفل حول الـ HTTP
 
 const API_BASE = isDev ? '/api' : `${AWS_SERVER_URL}/api`; 
 const GRAPHQL_BASE = isDev ? '/graphql' : `${AWS_SERVER_URL}/graphql`;
@@ -85,7 +85,7 @@ export const getImageUrl = (path) => {
   if (!path) return '/placeholder.png';
   
   // استدعاء رابط الباك-إند
-  const AWS_SERVER_URL = "http://ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001";
+  const AWS_SERVER_URL = "http://hamaguide-alb-1617100741.eu-north-1.elb.amazonaws.com";
   
   // تنظيف المسار من أي روابط قديمة لضمان عدم تكرار الرابط
   const AWS_HOST = "ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001";
