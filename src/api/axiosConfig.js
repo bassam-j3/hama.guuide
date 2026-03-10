@@ -1,17 +1,16 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-// 🚀 الكود الذكي للتفريق بين بيئة التطوير والإنتاج
 const isDev = import.meta.env.DEV;
-const AWS_SERVER_URL = "http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com/"; // ملاحظة هامة بالأسفل حول الـ HTTP
+
+// 🚀 الرابط الأساسي للسيرفر بدون أي / في النهاية
+const AWS_SERVER_URL = "http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com"; 
 
 const API_BASE = isDev ? '/api' : `${AWS_SERVER_URL}/api`; 
 const GRAPHQL_BASE = isDev ? '/graphql' : `${AWS_SERVER_URL}/graphql`;
 
 const TIMEOUT_DURATION = 60000; 
 const STORAGE_KEY = "oidc.user:hama.guide:admin"; 
-
-// ... (باقي الملف يبقى كما هو تماماً بدون تغيير) ...
 
 const axiosInstance = axios.create({
   baseURL: API_BASE, 
@@ -73,7 +72,6 @@ axiosInstance.interceptors.response.use(
         toast.error("انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.");
         setTimeout(() => { window.location.href = '/login'; }, 2000);
     }
-    // 🚀 اصطياد الـ 403 بأناقة
     else if (error.response?.status === 403) {
         toast.error("خطأ (403): ليس لديك صلاحية كافية للقيام بهذا الإجراء!");
     }
@@ -89,9 +87,9 @@ export const getImageUrl = (path) => {
       return path;
   }
 
-  // ⚠️ الكود القديم للتعامل مع الصور التي تم رفعها قبل استخدام S3 (إن وجدت)
-  const AWS_SERVER_URL = "http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com"; 
-  let cleanPath = path.replace(`http://${AWS_SERVER_URL}`, '').replace(`https://${AWS_SERVER_URL}`, '');
+  // ⚠️ تنظيف المسار القديم باستخدام اسم الهوست فقط وليس الرابط الكامل
+  const AWS_HOST = "hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com"; 
+  let cleanPath = path.replace(`http://${AWS_HOST}`, '').replace(`https://${AWS_HOST}`, '');
   
   if (!cleanPath.startsWith('/')) cleanPath = `/${cleanPath}`;
   return `${AWS_SERVER_URL}${cleanPath}`; 
