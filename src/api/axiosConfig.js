@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 
 // 🚀 الكود الذكي للتفريق بين بيئة التطوير والإنتاج
 const isDev = import.meta.env.DEV;
-const AWS_SERVER_URL = "http://hamaguide-alb-1617100741.eu-north-1.elb.amazonaws.com"; // ملاحظة هامة بالأسفل حول الـ HTTP
+const AWS_SERVER_URL = "http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com/"; // ملاحظة هامة بالأسفل حول الـ HTTP
 
 const API_BASE = isDev ? '/api' : `${AWS_SERVER_URL}/api`; 
 const GRAPHQL_BASE = isDev ? '/graphql' : `${AWS_SERVER_URL}/graphql`;
