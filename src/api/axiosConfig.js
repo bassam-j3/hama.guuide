@@ -84,15 +84,16 @@ axiosInstance.interceptors.response.use(
 export const getImageUrl = (path) => {
   if (!path) return '/placeholder.png';
   
-  // استدعاء رابط الباك-إند
-  const AWS_SERVER_URL = "http://hamaguide-alb-1617100741.eu-north-1.elb.amazonaws.com";
+  // 🚀 إذا كان الرابط قادماً من S3 أو يبدأ بـ http/https، نعيده كما هو بدون أي تدخل
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+  }
+
+  // ⚠️ الكود القديم للتعامل مع الصور التي تم رفعها قبل استخدام S3 (إن وجدت)
+  const AWS_SERVER_URL = "http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com"; 
+  let cleanPath = path.replace(`http://${AWS_SERVER_URL}`, '').replace(`https://${AWS_SERVER_URL}`, '');
   
-  // تنظيف المسار من أي روابط قديمة لضمان عدم تكرار الرابط
-  const AWS_HOST = "ec2-51-20-92-68.eu-north-1.compute.amazonaws.com:5001";
-  let cleanPath = path.replace(`http://${AWS_HOST}`, '').replace(`https://${AWS_HOST}`, '');
   if (!cleanPath.startsWith('/')) cleanPath = `/${cleanPath}`;
-  
-  // ✅ إرجاع الرابط كاملاً مشيراً إلى سيرفر AWS
   return `${AWS_SERVER_URL}${cleanPath}`; 
 };
 
