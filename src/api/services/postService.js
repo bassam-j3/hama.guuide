@@ -30,17 +30,25 @@ export const getPostById = async (serviceSlug, postId) => {
     return { ...post, latitude: parseFloat(latitude) || 0, longitude: parseFloat(longitude) || 0, payload: parsedPayload };
 };
 
+// 🚀 إنشاء بوست (متطابق مع Swagger: CreatePostRequest)
 export const createPostREST = async (serviceSlug, postData) => {
   return await axiosInstance.post(`/${serviceSlug}`, {
-    title: postData.title, imageUrl: postData.imageUrl || null, payload: postData.payload, 
-    latitude: parseFloat(postData.latitude) || 0, longitude: parseFloat(postData.longitude) || 0
+    title: postData.title, 
+    imageUrl: postData.imageUrl || null, 
+    payload: postData.payload, 
+    latitude: parseFloat(postData.latitude) || 0, 
+    longitude: parseFloat(postData.longitude) || 0
   });
 };
 
+// 🚀 تعديل بوست (تم إضافة imageUrl ليتطابق مع Swagger: UpdatePostRequest)
 export const updatePostREST = async (serviceSlug, postId, postData) => {
   return await axiosInstance.put(`/${serviceSlug}/${postId}`, {
-    title: postData.title, payload: postData.payload,
-    latitude: parseFloat(postData.latitude) || 0, longitude: parseFloat(postData.longitude) || 0
+    title: postData.title, 
+    payload: postData.payload,
+    imageUrl: postData.imageUrl || null, // 🔥 تم إصلاح هذه الثغرة لكي لا تختفي الصورة عند التعديل
+    latitude: parseFloat(postData.latitude) || 0, 
+    longitude: parseFloat(postData.longitude) || 0
   });
 };
 
@@ -56,7 +64,18 @@ export const fetchAllAll = async () => {
   } catch (error) { return []; }
 };
 
+// ==========================================
 // 🚀 مسارات التقييم (Swagger)
+// ==========================================
+
+// 1. إضافة تقييم جديد (Swagger: POST /api/posts/{postId}/rating)
+export const addPostRating = async (postId, ratingValue) => {
+    return await axiosInstance.post(`/posts/${postId}/rating`, {
+        value: parseInt(ratingValue, 10)
+    });
+};
+
+// 2. حذف التقييم (Swagger: DELETE /api/posts/{postId}/rating)
 export const deletePostRating = async (postId) => {
     return await axiosInstance.delete(`/posts/${postId}/rating`);
 };
