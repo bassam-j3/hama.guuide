@@ -32,47 +32,15 @@ export const createSection = async (sectionData) => {
     return await axiosInstance.post(API_BASE, payload);
 };
 
-export const updateService = async (id, serviceData) => {
-    const basicPayload = {
-        title: serviceData.title,
-        slug: serviceData.slug,
-        description: serviceData.description || null,
-        imageUrl: serviceData.imageUrl || null
+// 🚀 هذه هي الدالة الصحيحة للأقسام (تم إزالة parentId منها)
+export const updateSection = async (id, sectionData) => {
+    const payload = {
+        title: sectionData.title,
+        slug: sectionData.slug,
+        description: sectionData.description || null,
+        imageUrl: sectionData.imageUrl || null
     };
-    
-    await axiosInstance.put(`${API_SERVICES}/${id}`, basicPayload);
-
-    if (serviceData.schema && serviceData.schema.length > 0) {
-        const schemaPayload = {
-            serviceId: id,
-            types: serviceData.schema.map(field => ({
-                fieldName: field.fieldName,
-                isRequired: field.isRequired || false,
-                fieldType: field.fieldType,
-                presentation: field.presentation || "",
-                allowedTypes: []
-            }))
-        };
-        await axiosInstance.post(API_SCHEMAS, schemaPayload).catch(console.warn);
-    }
-
-    // 🚀 الإصلاح الجوهري هنا: معالجة الربط وفك الربط (Linking & Unlinking)
-    if (serviceData.sectionId) {
-        try {
-            await axiosInstance.put(`${API_SECTIONS}/${serviceData.sectionId}/services/${id}`);
-        } catch (e) {
-            console.warn("Failed to update section link", e);
-        }
-    } else if (serviceData.sectionId === null) {
-        // 🚀 إذا اختار المدير "-- بدون قسم --"، نقوم بفك الارتباط فعلياً من السيرفر
-        try {
-            await axiosInstance.delete(`${API_SECTIONS}/services/${id}`);
-        } catch (e) {
-            console.warn("Failed to unlink service from section", e);
-        }
-    }
-
-    return true;
+    return await axiosInstance.put(`${API_BASE}/${id}`, payload);
 };
 
 export const deleteSection = async (id) => {

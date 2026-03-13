@@ -4,10 +4,6 @@ const API_SERVICES = '/Services';
 const API_SCHEMAS = '/Schemas';
 const API_SECTIONS = '/Sections';
 
-/**
- * 1. جلب كل الخدمات
- * ⚠️ ملاحظة: هذا المسار (Deprecated) في Swagger الجديد، لكن لا يوجد بديل له بعد.
- */
 export const fetchAllServices = async () => {
     return await axiosInstance.get(API_SERVICES);
 };
@@ -21,7 +17,7 @@ export const createService = async (serviceData) => {
         title: serviceData.title,
         slug: serviceData.slug,
         description: serviceData.description || null,
-        imageUrl: serviceData.imageUrl || null, // 🚀 رابط S3
+        imageUrl: serviceData.imageUrl || null,
         sectionId: serviceData.sectionId, 
         schema: (serviceData.schema || []).map(field => ({
             fieldName: field.fieldName,
@@ -59,11 +55,19 @@ export const updateService = async (id, serviceData) => {
         await axiosInstance.post(API_SCHEMAS, schemaPayload).catch(console.warn);
     }
 
+    // 🚀 الإصلاح الجوهري هنا (تمت إضافته بشكل صحيح)
     if (serviceData.sectionId) {
         try {
             await axiosInstance.put(`${API_SECTIONS}/${serviceData.sectionId}/services/${id}`);
         } catch (e) {
             console.warn("Failed to update section link", e);
+        }
+    } else if (serviceData.sectionId === null) {
+        // فك الارتباط
+        try {
+            await axiosInstance.delete(`${API_SECTIONS}/services/${id}`);
+        } catch (e) {
+            console.warn("Failed to unlink service from section", e);
         }
     }
 
