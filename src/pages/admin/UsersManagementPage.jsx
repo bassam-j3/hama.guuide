@@ -143,7 +143,7 @@ const UsersManagementPage = () => {
                                                 {user.roles && user.roles.map((role, idx) => (
                                                     <Badge key={idx} bg={role === 'SuperAdmin' ? 'danger' : (role === 'Admin' ? 'success' : 'secondary')} className="me-1 px-2 py-1">{role}</Badge>
                                                 ))}
-                                                {(!user.roles || user.roles.length === 0) && <Badge bg="secondary">User</Badge>}
+                                                {(!user.roles || user.roles.length === 0) && <Badge bg="secondary">Admin</Badge>}
                                             </td>
                                             <td className="d-none d-md-table-cell">
                                                 <div className="d-flex flex-column small">
