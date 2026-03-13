@@ -9,7 +9,7 @@ export const getSections = async (parentId = null, level = null) => {
     return await axiosInstance.get(API_BASE, { params });
 };
 
-// 🚀 تم الاستغناء عن /all لأنه أصبح Deprecated في Swagger
+// 🚀 ملاحظة: نستخدم المسار الأساسي، وإذا واجهت خطأ 404 مجدداً قم بتغييره إلى `${API_BASE}/all` مؤقتاً
 export const fetchAllSections = async () => {
     return await axiosInstance.get(API_BASE);
 };
@@ -26,24 +26,53 @@ export const createSection = async (sectionData) => {
         parentId: (sectionData.parentId && sectionData.parentId.trim() !== "") 
                   ? sectionData.parentId 
                   : null,
-        // 🚀 تم حذف الـ Regex الخطير لكي نحتفظ برابط S3 كاملاً
         imageUrl: sectionData.imageUrl || null
     };
 
     return await axiosInstance.post(API_BASE, payload);
 };
 
-export const updateSection = async (id, sectionData) => {
-    const payload = {
-        title: sectionData.title,
-        slug: sectionData.slug,
-        description: sectionData.description || null,
-        imageUrl: sectionData.imageUrl || null, // 🚀 رابط S3 يرسل كاملاً
-        parentId: (sectionData.parentId && sectionData.parentId !== "") 
-                  ? sectionData.parentId 
-                  : null
+export const updateService = async (id, serviceData) => {
+    const basicPayload = {
+        title: serviceData.title,
+        slug: serviceData.slug,
+        description: serviceData.description || null,
+        imageUrl: serviceData.imageUrl || null
     };
-    return await axiosInstance.put(`${API_BASE}/${id}`, payload);
+    
+    await axiosInstance.put(`${API_SERVICES}/${id}`, basicPayload);
+
+    if (serviceData.schema && serviceData.schema.length > 0) {
+        const schemaPayload = {
+            serviceId: id,
+            types: serviceData.schema.map(field => ({
+                fieldName: field.fieldName,
+                isRequired: field.isRequired || false,
+                fieldType: field.fieldType,
+                presentation: field.presentation || "",
+                allowedTypes: []
+            }))
+        };
+        await axiosInstance.post(API_SCHEMAS, schemaPayload).catch(console.warn);
+    }
+
+    // 🚀 الإصلاح الجوهري هنا: معالجة الربط وفك الربط (Linking & Unlinking)
+    if (serviceData.sectionId) {
+        try {
+            await axiosInstance.put(`${API_SECTIONS}/${serviceData.sectionId}/services/${id}`);
+        } catch (e) {
+            console.warn("Failed to update section link", e);
+        }
+    } else if (serviceData.sectionId === null) {
+        // 🚀 إذا اختار المدير "-- بدون قسم --"، نقوم بفك الارتباط فعلياً من السيرفر
+        try {
+            await axiosInstance.delete(`${API_SECTIONS}/services/${id}`);
+        } catch (e) {
+            console.warn("Failed to unlink service from section", e);
+        }
+    }
+
+    return true;
 };
 
 export const deleteSection = async (id) => {
@@ -59,7 +88,19 @@ export const linkServiceToSection = async (sectionId, serviceId) => {
 };
 
 export const removeServiceFromSection = async (serviceId) => {
-    return await axiosInstance.post(`${API_BASE}/services/remove/${serviceId}`);
+    // 🚀 تم تحديث المسار وطريقة الطلب (DELETE) لتتطابق مع السواجر الجديد تماماً
+    return await axiosInstance.delete(`${API_BASE}/services/${serviceId}`);
+};
+
+// ==========================================
+// 🚀 مسارات جديدة تمت إضافتها في السواجر لربط وفك الأقسام الفرعية بالرئيسية
+// ==========================================
+export const assignChildSection = async (parentId, childId) => {
+    return await axiosInstance.put(`${API_BASE}/${parentId}/sections/${childId}`);
+};
+
+export const removeChildSection = async (parentId, childId) => {
+    return await axiosInstance.delete(`${API_BASE}/${parentId}/sections/${childId}`);
 };
 
 const sectionService = {
@@ -71,7 +112,9 @@ const sectionService = {
     deleteSection,
     getSectionServices,
     linkServiceToSection,
-    removeServiceFromSection
+    removeServiceFromSection,
+    assignChildSection,
+    removeChildSection
 };
 
 export default sectionService;

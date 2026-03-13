@@ -53,7 +53,20 @@ export const authService = {
   // 🚀 تغيير الإيميل (Swagger: POST /api/auth/email/change)
   changeEmail: async (newEmail) => {
     return await axiosInstance.post(`${AUTH_BASE}/email/change`, { newEmail });
+  },
+  // 🚀 تنفيذ تغيير كلمة المرور (Swagger: POST /api/auth/password-reset)
+  resetPassword: async (email, resetCode, newPassword) => {
+    return await axiosInstance.post(`${AUTH_BASE}/password-reset`, null, { 
+        params: { Email: email, ResetCode: resetCode, NewPassword: newPassword } 
+    });
+  },
+
+  // 🚀 تأكيد البريد الإلكتروني (إن احتجتها مستقبلاً) (Swagger: POST /api/auth/email/confirm)
+  confirmEmailPost: async (email) => {
+    return await axiosInstance.post(`${AUTH_BASE}/email/confirm`, null, { params: { email } });
   }
 };
+
+
 
 export default authService;
