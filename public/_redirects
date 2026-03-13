@@ -1,7 +1,7 @@
-/api/* http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com//api/:splat  200!
-/Admin/* http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com//Admin/:splat  200!
-/Files/* http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com//Files/:splat  200!
-/connect/* http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com//connect/:splat  200!
-/.well-known/* http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com//.well-known/:splat  200!
-/graphql/* http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com//graphql/:splat  200!
+/api/* hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/api/:splat  200!
+/Admin/* hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/Admin/:splat  200!
+/Files/* hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/Files/:splat  200!
+/connect/* hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/connect/:splat  200!
+/.well-known/* hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/.well-known/:splat  200!
+/graphql/* hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/graphql/:splat  200!
 /* /index.html  200
