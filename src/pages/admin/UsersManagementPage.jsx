@@ -183,14 +183,7 @@ const UsersManagementPage = () => {
                         {!isEditing && (
                             <Form.Group className="mb-3"><Form.Label className="small fw-bold">كلمة المرور</Form.Label><Form.Control type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></Form.Group>
                         )}
-                        <Form.Group className="mb-3">
-                            <Form.Label className="small fw-bold text-secondary">الدور (Role)</Form.Label>
-                            <Form.Select value={formData.roles[0]} onChange={e => setFormData({...formData, roles: [e.target.value]})}>
-                                <option value="User">User (مستخدم عادي)</option>
-                                <option value="Admin">Admin (مدير)</option>
-                                <option value="SuperAdmin">SuperAdmin (مدير عام)</option>
-                            </Form.Select>
-                        </Form.Group>
+
                     </Modal.Body>
                     <Modal.Footer className="border-0 pt-0">
                         <Button variant="light" onClick={() => setShowModal(false)}>إلغاء</Button>
