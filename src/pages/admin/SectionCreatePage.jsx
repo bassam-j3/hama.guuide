@@ -6,7 +6,7 @@ import { uploadFile } from '../../api/services/fileService';
 import { getImageUrl } from '../../api/axiosConfig'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
-import toast from 'react-hot-toast'; // 🚀 استيراد Toasts
+import toast from 'react-hot-toast'; 
 
 const SectionCreatePage = () => {
     const navigate = useNavigate();
@@ -21,7 +21,7 @@ const SectionCreatePage = () => {
         const loadSections = async () => {
             try {
                 const data = await fetchAllSections();
-                setAllSections(Array.isArray(data) ? data : []);
+                setAllSections(Array.isArray(data) ? data : (data?.items || []));
             } catch (err) { setLoadError("فشل تحميل قائمة الأقسام."); } finally { setLoading(false); }
         };
         loadSections();
@@ -57,27 +57,27 @@ const SectionCreatePage = () => {
         const file = e.target.files[0];
         if (!file) return;
         setUploading(true); 
-        const toastId = toast.loading('جاري رفع الصورة...'); // 🚀
+        const toastId = toast.loading('جاري رفع الصورة...'); 
         try {
             const res = await uploadFile(file);
             setFormData(prev => ({ ...prev, imageUrl: res.fileUrl || res }));
-            toast.success('تم رفع الصورة بنجاح', { id: toastId }); // 🚀
+            toast.success('تم رفع الصورة بنجاح', { id: toastId }); 
         } catch (err) { 
-            toast.error('فشل رفع الصورة.', { id: toastId }); // 🚀
+            toast.error('فشل رفع الصورة.', { id: toastId }); 
         } finally { setUploading(false); }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true); 
-        const toastId = toast.loading('جاري إنشاء القسم...'); // 🚀
+        const toastId = toast.loading('جاري إنشاء القسم...'); 
         try {
             const payload = { ...formData, parentId: formData.parentId === "" ? null : formData.parentId, imageUrl: formData.imageUrl || null };
             await createSection(payload);
-            toast.success('تم إنشاء القسم بنجاح!', { id: toastId }); // 🚀
+            toast.success('تم إنشاء القسم بنجاح!', { id: toastId }); 
             navigate('/admin/sections');
         } catch (err) { 
-            toast.error(err.response?.data?.message || "فشل إنشاء القسم.", { id: toastId }); // 🚀
+            toast.error(err.response?.data?.message || "فشل إنشاء القسم.", { id: toastId }); 
         } finally { setSubmitting(false); }
     };
 
@@ -118,7 +118,7 @@ const SectionCreatePage = () => {
                         <div className="mb-2">
                             <label className="form-label fw-bold small text-secondary"><Layers className="me-1"/> يتبع للقسم (المستوى)</label>
                             <select className="form-select" name="parentId" value={formData.parentId} onChange={handleChange}>
-                                <option value="" className="fw-bold">-- قسم رئيسي (Level 0) --</option>
+                                <option value="" className="fw-bold">-- قسم رئيسي (الجذر) --</option>
                                 {hierarchicalOptions.map(sec => <option key={sec.id} value={sec.id}>{'\u00A0\u00A0\u00A0'.repeat(sec.level)}{sec.level > 0 ? '└─ ' : ''}{sec.title}</option>)}
                             </select>
                         </div>

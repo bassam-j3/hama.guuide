@@ -6,7 +6,7 @@ import { getImageUrl } from '../../api/axiosConfig';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import { Save, ArrowRight, Image as ImageIcon, Link45deg } from 'react-bootstrap-icons';
-import toast from 'react-hot-toast'; // 🚀 استيراد Toasts
+import toast from 'react-hot-toast';
 
 const SectionEditPage = () => {
     const { id } = useParams();
@@ -27,7 +27,7 @@ const SectionEditPage = () => {
                 title: sectionData.title || '', slug: sectionData.slug || '', description: sectionData.description || '',
                 imageUrl: sectionData.imageUrl || '', parentId: sectionData.parentId || ''
             });
-            setAllSections(Array.isArray(sectionsList) ? sectionsList : []);
+            setAllSections(Array.isArray(sectionsList) ? sectionsList : (sectionsList?.items || []));
         } catch (err) { setLoadError('فشل جلب البيانات.'); } finally { setLoading(false); }
     }, [id]);
 
@@ -61,26 +61,26 @@ const SectionEditPage = () => {
         const file = e.target.files[0];
         if (!file) return;
         setUploading(true); 
-        const toastId = toast.loading('جاري رفع الصورة...'); // 🚀
+        const toastId = toast.loading('جاري رفع الصورة...');
         try {
             const result = await uploadFile(file);
             setFormData(prev => ({ ...prev, imageUrl: result.fileUrl || result }));
-            toast.success('تم رفع الصورة!', { id: toastId }); // 🚀
+            toast.success('تم رفع الصورة!', { id: toastId }); 
         } catch (err) { 
-            toast.error('فشل رفع الصورة.', { id: toastId }); // 🚀
+            toast.error('فشل رفع الصورة.', { id: toastId }); 
         } finally { setUploading(false); }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true); 
-        const toastId = toast.loading('جاري حفظ التعديلات...'); // 🚀
+        const toastId = toast.loading('جاري حفظ التعديلات...'); 
         try {
-            await updateSection(id, { ...formData, parentId: formData.parentId === "" ? null : formData.parentId });
-            toast.success('تم حفظ التعديلات بنجاح!', { id: toastId }); // 🚀
+            await updateSection(id, formData);
+            toast.success('تم حفظ التعديلات بنجاح!', { id: toastId }); 
             setTimeout(() => navigate('/admin/sections'), 1500);
         } catch (err) { 
-            toast.error('فشل حفظ التعديلات.', { id: toastId }); // 🚀
+            toast.error('فشل حفظ التعديلات.', { id: toastId }); 
         } finally { setSubmitting(false); }
     };
 
@@ -91,7 +91,7 @@ const SectionEditPage = () => {
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div>
                     <h3 className="fw-bold mb-1">تعديل القسم</h3>
-                    <p className="text-muted small mb-0">تحديث بيانات وشجرة الأقسام.</p>
+                    <p className="text-muted small mb-0">تحديث بيانات القسم.</p>
                 </div>
                 <button className="btn btn-outline-secondary btn-sm w-100 w-md-auto" onClick={() => navigate('/admin/sections')}><ArrowRight className="me-1"/> عودة</button>
             </div>
@@ -119,8 +119,8 @@ const SectionEditPage = () => {
                             <textarea className="form-control" name="description" rows="3" value={formData.description} onChange={handleChange} />
                         </div>
                         <div className="mb-4">
-                            <label className="form-label fw-bold small text-secondary">القسم الأب (لا يمكن تغييره بعد الإنشاء)</label>
-                            <select className="form-select bg-light" name="parentId" value={formData.parentId} disabled>
+                            <label className="form-label fw-bold small text-secondary">القسم الأب (الترتيب يتم من شاشة إدارة الأقسام)</label>
+                            <select className="form-select bg-light text-muted" name="parentId" value={formData.parentId} disabled>
                                 <option value="">-- قسم رئيسي (الجذر) --</option>
                                 {hierarchicalOptions.map(opt => <option key={opt.id} value={opt.id}>{'\u00A0\u00A0\u00A0'.repeat(opt.level)}{opt.level > 0 ? '└─ ' : ''}{opt.title}</option>)}
                             </select>
