@@ -2,8 +2,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const isDev = import.meta.env.DEV;
-const AWS_SERVER_URL = "http://hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com"; 
-
+const AWS_SERVER_URL = "http://hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com";
 const API_BASE = isDev ? '/api' : `${AWS_SERVER_URL}/api`; 
 const GRAPHQL_BASE = isDev ? '/graphql' : `${AWS_SERVER_URL}/graphql`;
 
@@ -173,7 +172,8 @@ export const getImageUrl = (path) => {
   if (!path) return '/placeholder.png';
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
   
-  const AWS_HOST = "hamaguide-alb-157671246.eu-north-1.elb.amazonaws.com"; 
+  // قم بتحديث الهوست هنا أيضاً
+const AWS_HOST = "hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com"; 
   let cleanPath = path.replace(`http://${AWS_HOST}`, '').replace(`https://${AWS_HOST}`, '');
   
   if (!cleanPath.startsWith('/')) cleanPath = `/${cleanPath}`;
