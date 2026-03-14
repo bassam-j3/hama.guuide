@@ -14,7 +14,6 @@ const SectionsManagementPage = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
 
-  // 🚀 حالات السحب والإفلات
   const [draggedSection, setDraggedSection] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [updatingHierarchy, setUpdatingHierarchy] = useState(false);
@@ -37,7 +36,6 @@ const SectionsManagementPage = () => {
 
   useEffect(() => { loadSections(); }, [loadSections]);
 
-  // 🚀 بناء شجرة الأقسام ليتم عرضها بمسافات بادئة
   const hierarchicalSections = useMemo(() => {
     const buildHierarchy = (sectionsList, parentId = null, level = 0) => {
         let result = [];
@@ -66,9 +64,6 @@ const SectionsManagementPage = () => {
     }
   };
 
-  // ==========================================
-  // 🚀 دوال السحب والإفلات
-  // ==========================================
   const handleDragStart = (e, section) => {
       setDraggedSection(section);
       e.dataTransfer.effectAllowed = 'move';
@@ -91,6 +86,22 @@ const SectionsManagementPage = () => {
 
       if (!draggedSection || draggedSection.id === targetSection.id || draggedSection.parentId === targetSection.id) return;
 
+      // 🚀 حماية ذكية: منع وضع الأب داخل الابن (Circular Dependency Prevention)
+      const isDescendant = (parentId, childId) => {
+          let current = sections.find(s => s.id === childId);
+          while (current) {
+              if (current.parentId === parentId) return true;
+              current = sections.find(s => s.id === current.parentId);
+          }
+          return false;
+      };
+
+      if (isDescendant(draggedSection.id, targetSection.id)) {
+          toast.error('عملية غير صالحة: لا يمكنك وضع قسم رئيسي داخل قسم فرعي يتبع له!');
+          setDraggedSection(null);
+          return;
+      }
+
       if (!window.confirm(`هل تريد نقل القسم "${draggedSection.title}" ليصبح فرعياً داخل "${targetSection.title}"؟`)) {
           setDraggedSection(null);
           return;
@@ -100,10 +111,15 @@ const SectionsManagementPage = () => {
       setUpdatingHierarchy(true);
       try {
           await assignChildSection(targetSection.id, draggedSection.id);
+          
+          // 🚀 Optimistic UI Update: نحدث الواجهة فوراً بدون انتظار الباك إند
+          setSections(prev => prev.map(s => s.id === draggedSection.id ? { ...s, parentId: targetSection.id } : s));
           toast.success('تم نقل القسم بنجاح!', { id: toastId });
-          await loadSections(); 
+          
+          // تحديث صامت بالخلفية لضمان المزامنة
+          loadSections();
       } catch (error) {
-          toast.error('فشل النقل. لا يمكن وضع قسم رئيسي داخل قسم فرعي تابع له.', { id: toastId });
+          toast.error('فشل النقل، يرجى المحاولة لاحقاً.', { id: toastId });
       } finally {
           setDraggedSection(null);
           setUpdatingHierarchy(false);
@@ -116,8 +132,12 @@ const SectionsManagementPage = () => {
       setUpdatingHierarchy(true);
       try {
           await removeChildSection(childSection.parentId, childSection.id);
+          
+          // 🚀 Optimistic UI Update: إزالة الارتباط محلياً فوراً
+          setSections(prev => prev.map(s => s.id === childSection.id ? { ...s, parentId: null } : s));
           toast.success('تم فك الارتباط بنجاح!', { id: toastId });
-          await loadSections();
+          
+          loadSections();
       } catch (error) {
           toast.error('فشل فك الارتباط.', { id: toastId });
       } finally {

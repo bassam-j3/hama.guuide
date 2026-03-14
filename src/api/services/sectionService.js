@@ -11,8 +11,9 @@ export const getSections = async (parentId = null, level = null) => {
 
 // 🚀 ملاحظة: نستخدم المسار الأساسي، وإذا واجهت خطأ 404 مجدداً قم بتغييره إلى `${API_BASE}/all` مؤقتاً
 // 🚀 إضافة /all لكي نحصل على كافة الأقسام الرئيسية والفرعية معاً
+// 🚀 إضافة Timestamp لمنع الـ Caching وجلب بيانات طازجة دائماً
 export const fetchAllSections = async () => {
-    return await axiosInstance.get(`${API_BASE}/all`);
+    return await axiosInstance.get(`${API_BASE}/all`, { params: { _t: new Date().getTime() } });
 };
 export const getSectionById = async (id) => {
     return await axiosInstance.get(`${API_BASE}/${id}`);
