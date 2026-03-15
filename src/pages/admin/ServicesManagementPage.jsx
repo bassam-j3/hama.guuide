@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { PlusLg, PencilSquare, Trash, Search, Funnel, Image as ImageIcon, Folder } from 'react-bootstrap-icons';
 import { fetchAllServices, deleteService } from '../../api/services/serviceService';
@@ -7,58 +7,61 @@ import { getImageUrl } from '../../api/axiosConfig';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import toast from 'react-hot-toast'; 
 import { useDebounce } from '../../hooks/useDebounce';
-import TableSkeleton from '../../components/common/TableSkeleton'; // 🚀 استيراد مكون الـ Skeleton
+import TableSkeleton from '../../components/common/TableSkeleton'; 
+// 🚀 1. استيراد هوكات React Query
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const ServicesManagementPage = () => {
     const navigate = useNavigate();
     const { triggerGlobalRefresh } = useOutletContext(); 
+    const queryClient = useQueryClient(); // 🚀 للتحكم في الـ Cache
 
-    const [services, setServices] = useState([]);
-    const [sections, setSections] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    
-    // 🚀 States الخاصة بالبحث
+    // States الخاصة بالبحث والفلترة فقط (أما states جلب البيانات تم حذفها!)
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300); 
-
     const [filterSection, setFilterSection] = useState('');
-    const [isDeleting, setIsDeleting] = useState(null);
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLoading(true);
-                const [servicesData, sectionsData] = await Promise.all([fetchAllServices(), fetchAllSections()]);
-                setServices(servicesData?.data || servicesData?.items || servicesData || []);
-                setSections(sectionsData?.data || sectionsData?.items || sectionsData || []);
-            } catch (err) { 
-                setError("فشل تحميل البيانات."); 
-            } finally { 
-                setLoading(false); 
-            }
-        };
-        loadData();
-    }, []);
+    // 🚀 2. جلب الخدمات بأسلوب الـ Senior (سطر واحد يغني عن useEffect و useState)
+    const { 
+        data: rawServices, 
+        isLoading: loadingServices, 
+        isError: errorServices 
+    } = useQuery({
+        queryKey: ['services'], // مفتاح ذكي لتخزين البيانات في الذاكرة (Cache)
+        queryFn: fetchAllServices
+    });
+
+    // 🚀 3. جلب الأقسام بنفس الطريقة
+    const { data: rawSections } = useQuery({
+        queryKey: ['sections'],
+        queryFn: fetchAllSections
+    });
+
+    // استخراج المصفوفات النظيفة
+    const services = rawServices?.data || rawServices?.items || rawServices || [];
+    const sections = rawSections?.data || rawSections?.items || rawSections || [];
 
     const sectionsMap = useMemo(() => {
         return Array.isArray(sections) ? sections.reduce((acc, sec) => { acc[sec.id] = sec.title; return acc; }, {}) : {};
     }, [sections]);
 
-    const handleDelete = async (id, title) => {
-        if (!window.confirm(`تأكيد حذف خدمة "${title}"؟\nسيتم حذف جميع المنشورات المرتبطة بها.`)) return;
-        
-        const toastId = toast.loading('جاري حذف الخدمة...'); 
-        setIsDeleting(id);
-        try {
-            await deleteService(id);
-            setServices(prev => prev.filter(s => s.id !== id));
-            toast.success(`تم الحذف بنجاح!`, { id: toastId }); 
+    // 🚀 4. هندسة الحذف (Mutation) بدلاً من الـ try/catch اليدوي
+    const deleteMutation = useMutation({
+        mutationFn: deleteService,
+        onSuccess: () => {
+            toast.success('تم الحذف بنجاح!');
+            // 🚀 أمر سحري: أخبر React Query أن مفتاح 'services' أصبح قديماً، وسيقوم بجلب الجدول الجديد تلقائياً!
+            queryClient.invalidateQueries(['services']); 
             triggerGlobalRefresh(); 
-        } catch (err) { 
-            toast.error("حدث خطأ! تأكد من عدم ارتباطها ببيانات أخرى.", { id: toastId }); 
-        } finally {
-            setIsDeleting(null);
+        },
+        onError: () => {
+            toast.error('حدث خطأ! تأكد من عدم ارتباطها ببيانات أخرى.');
+        }
+    });
+
+    const handleDelete = (id, title) => {
+        if (window.confirm(`تأكيد حذف خدمة "${title}"؟\nسيتم حذف جميع المنشورات المرتبطة بها.`)) {
+            deleteMutation.mutate(id); // استدعاء دالة الحذف
         }
     };
 
@@ -68,11 +71,10 @@ const ServicesManagementPage = () => {
         return matchesSearch && matchesSection;
     }) : [];
 
-    // 🚀 الشاشة الهيكلية (Skeleton Screen) أثناء التحميل
-    if (loading) {
+    // 🚀 واجهة التحميل (Skeleton)
+    if (loadingServices) {
         return (
             <div className="services-page animate-fade-in text-end" dir="rtl">
-                {/* هيكل الهيدر */}
                 <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-3 p-md-4 rounded-3 shadow-sm border flex-wrap gap-3">
                     <div>
                         <div className="skeleton skeleton-text" style={{width: '150px', height: '24px'}}></div>
@@ -80,13 +82,11 @@ const ServicesManagementPage = () => {
                     </div>
                     <div className="skeleton skeleton-text mb-0 rounded" style={{width: '160px', height: '38px'}}></div>
                 </div>
-                {/* هيكل الفلاتر */}
                 <div className="card border-0 shadow-sm mb-4 bg-white">
                     <div className="card-body p-3">
                         <div className="skeleton skeleton-text mb-0" style={{width: '100%', height: '38px'}}></div>
                     </div>
                 </div>
-                {/* هيكل الجدول */}
                 <TableSkeleton columns={4} rows={5} />
             </div>
         );
@@ -104,7 +104,7 @@ const ServicesManagementPage = () => {
                 </button>
             </div>
 
-            {error && <ErrorMessage message={error} />}
+            {errorServices && <ErrorMessage message="فشل تحميل الخدمات. يرجى التحقق من الاتصال." />}
 
             <div className="card border-0 shadow-sm mb-4 bg-white">
                 <div className="card-body p-3">
@@ -159,9 +159,10 @@ const ServicesManagementPage = () => {
                                     <td className="small font-monospace text-muted d-none d-lg-table-cell" dir="ltr">{service.slug}</td>
                                     <td className="text-center px-2">
                                         <div className="d-flex justify-content-center gap-1 gap-md-2">
-                                            <button className="btn btn-sm btn-white border text-primary" onClick={() => navigate(`/admin/services/edit/${service.id}`)} disabled={isDeleting === service.id}><PencilSquare /></button>
-                                            <button className="btn btn-sm btn-white border text-danger" onClick={() => handleDelete(service.id, service.title)} disabled={isDeleting === service.id}>
-                                                {isDeleting === service.id ? <span className="spinner-border spinner-border-sm" /> : <Trash />}
+                                            <button className="btn btn-sm btn-white border text-primary" onClick={() => navigate(`/admin/services/edit/${service.id}`)} disabled={deleteMutation.isPending}><PencilSquare /></button>
+                                            <button className="btn btn-sm btn-white border text-danger" onClick={() => handleDelete(service.id, service.title)} disabled={deleteMutation.isPending}>
+                                                {/* 🚀 إظهار علامة التحميل تلقائياً عند الحذف */}
+                                                {deleteMutation.isPending && deleteMutation.variables === service.id ? <span className="spinner-border spinner-border-sm" /> : <Trash />}
                                             </button>
                                         </div>
                                     </td>
