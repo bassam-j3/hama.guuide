@@ -1,25 +1,26 @@
-/* 🚀 1. استيراد الخطوط الاحترافية من جوجل */
+/* 🚀 استيراد الخطوط الاحترافية */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* 🎨 Design Tokens - ألوان الهوية البصرية الجديدة */
+  /* 🎨 Design Tokens - الألوان الأساسية */
   --primary: #0a4d44;
-  --primary-hover: #073a33; /* درجة أغمق للـ Hover */
+  --primary-hover: #073a33; 
   --bg-light: #f6f8f8;
   --bg-dark: #11211f;
   
   --text-main: #1f2937;
   --text-muted: #6b7280;
+  --border-color: #e5e7eb;
 
   /* 📏 Layout & Animation Tokens */
   --sidebar-width: 260px;
   --transition-speed: 0.3s;
 
-  /* ⭕ Border Radius Tokens */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-pill: 9999px;
+  /* ⭕ Border Radius Tokens (مطابقة لإعداداتك تماماً) */
+  --radius-default: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
 }
 
 /* =========================================
@@ -29,17 +30,16 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  overflow-x: hidden; /* يمنع السكرول الأفقي المزعج */
+  overflow-x: hidden; 
   background-color: var(--bg-light);
   color: var(--text-main);
   font-family: "Noto Sans Arabic", "Public Sans", sans-serif;
   direction: rtl;
-  -webkit-font-smoothing: antialiased; /* لجعل الخطوط أنعم في الشاشات */
+  -webkit-font-smoothing: antialiased; 
 }
 
 /* =========================================
-   Bootstrap Overrides (The Senior Way) 🚀
-   تغيير لون البوتستراب الافتراضي للألوان الخاصة بك
+   Bootstrap Overrides 🚀
    ========================================= */
 .text-primary { color: var(--primary) !important; }
 .bg-primary { background-color: var(--primary) !important; }
@@ -48,9 +48,10 @@ html, body {
 
 /* تخصيص الأزرار لتبدو عصرية */
 .btn {
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   font-weight: 600;
   transition: all 0.2s ease-in-out;
+  padding: 0.5rem 1rem;
 }
 
 .btn-primary {
@@ -62,7 +63,7 @@ html, body {
 .btn-primary:hover, .btn-primary:focus {
   background-color: var(--primary-hover);
   border-color: var(--primary-hover);
-  transform: translateY(-1px); /* حركة رفع خفيفة */
+  transform: translateY(-1px); 
   box-shadow: 0 4px 12px rgba(10, 77, 68, 0.2);
 }
 
@@ -76,41 +77,42 @@ html, body {
   color: #ffffff;
 }
 
-/* تخصيص البطاقات (Cards) لتبدو عائمة */
+/* تخصيص البطاقات (Cards) لتبدو أنيقة ومرتفعة قليلاً */
 .card {
-  border-radius: var(--radius-lg) !important;
-  border: 1px solid rgba(0, 0, 0, 0.04) !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03) !important;
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
   background-color: #ffffff;
+}
+
+/* =========================================
+   تنسيقات الجدول (Tables)
+   ========================================= */
+.table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-color);
+  padding: 1rem;
+}
+.table td {
+  padding: 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-color);
 }
 
 /* =========================================
    Scrollbar Styling (سحب أنيق)
    ========================================= */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-light);
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: var(--radius-pill);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-light); }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
-/* سكرول بار خاص بالقائمة الجانبية المظلمة */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { 
   background: rgba(255, 255, 255, 0.15); 
-  border-radius: var(--radius-pill); 
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { 
-  background: rgba(255, 255, 255, 0.3); 
+  border-radius: var(--radius-full); 
 }
 
 /* =========================================
@@ -123,8 +125,9 @@ html, body {
   width: var(--sidebar-width); 
   height: 100vh; 
   z-index: 1050; 
-  background-color: var(--bg-dark) !important; /* تطبيق اللون الداكن */
+  background-color: var(--bg-dark) !important; 
   transition: transform var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1); 
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .main-wrapper { 
@@ -134,11 +137,11 @@ html, body {
   flex-direction: column; 
 }
 
-/* طبقة التعتيم عند فتح القائمة في الجوال (بخلفية ضبابية أنيقة) */
+/* طبقة التعتيم عند فتح القائمة في الجوال */
 .sidebar-overlay { 
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
-  background: rgba(17, 33, 31, 0.5); /* نفس لون الخلفية الداكنة بشفافية */
-  backdrop-filter: blur(3px); /* تأثير ضبابي حديث */
+  background: rgba(17, 33, 31, 0.6); 
+  backdrop-filter: blur(4px); 
   z-index: 1040; 
   opacity: 0; visibility: hidden; transition: 0.3s; 
 }
@@ -159,17 +162,17 @@ html, body {
 /* =========================================
    Utilities & Animations
    ========================================= */
+.nav-link { border-radius: var(--radius-lg); font-weight: 500; }
+
 .hover-bg-dark:hover { 
-  background-color: rgba(255, 255, 255, 0.05); 
+  background-color: rgba(255, 255, 255, 0.08); 
   color: #ffffff !important; 
 }
 .hover-text-white:hover { color: #ffffff !important; }
 .cursor-pointer { cursor: pointer; }
 
 /* تأثير دخول الصفحات بسلاسة */
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
-}
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -179,17 +182,16 @@ html, body {
    Skeleton Loaders
    ========================================= */
 @keyframes skeleton-pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.4; }
-  100% { opacity: 1; }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .skeleton {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
-  background-color: #e5e9eb; /* لون رمادي يناسب الخلفية الفاتحة */
-  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: #e5e7eb; 
+  border-radius: var(--radius-default);
 }
 
-.skeleton-text { height: 16px; width: 100%; margin-bottom: 8px; border-radius: var(--radius-sm); }
-.skeleton-avatar { width: 40px; height: 40px; border-radius: var(--radius-pill); flex-shrink: 0; }
-.skeleton-button { height: 32px; width: 32px; border-radius: var(--radius-md); }
+.skeleton-text { height: 1rem; width: 100%; margin-bottom: 0.5rem; border-radius: var(--radius-default); }
+.skeleton-avatar { width: 2.5rem; height: 2.5rem; border-radius: var(--radius-full); flex-shrink: 0; }
+.skeleton-button { height: 2rem; width: 2rem; border-radius: var(--radius-lg); }
