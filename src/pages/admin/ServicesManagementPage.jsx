@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { PlusLg, PencilSquare, Trash, Search, Funnel, Image as ImageIcon, Folder } from 'react-bootstrap-icons';
 import { fetchAllServices, deleteService } from '../../api/services/serviceService';
 import { fetchAllSections } from '../../api/services/sectionService';
 import { getImageUrl } from '../../api/axiosConfig'; 
-import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import toast from 'react-hot-toast'; 
-import { useDebounce } from '../../hooks/useDebounce'; // 🚀 استيراد الهوك الخاص بتأخير البحث
+import { useDebounce } from '../../hooks/useDebounce';
+import TableSkeleton from '../../components/common/TableSkeleton'; // 🚀 استيراد مكون الـ Skeleton
 
 const ServicesManagementPage = () => {
     const navigate = useNavigate();
-    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+    const { triggerGlobalRefresh } = useOutletContext(); 
 
     const [services, setServices] = useState([]);
     const [sections, setSections] = useState([]);
@@ -20,7 +20,7 @@ const ServicesManagementPage = () => {
     
     // 🚀 States الخاصة بالبحث
     const [searchTerm, setSearchTerm] = useState('');
-    const debouncedSearchTerm = useDebounce(searchTerm, 300); // 🚀 تأخير البحث بمقدار 300 ملي ثانية
+    const debouncedSearchTerm = useDebounce(searchTerm, 300); 
 
     const [filterSection, setFilterSection] = useState('');
     const [isDeleting, setIsDeleting] = useState(null);
@@ -32,7 +32,11 @@ const ServicesManagementPage = () => {
                 const [servicesData, sectionsData] = await Promise.all([fetchAllServices(), fetchAllSections()]);
                 setServices(servicesData?.data || servicesData?.items || servicesData || []);
                 setSections(sectionsData?.data || sectionsData?.items || sectionsData || []);
-            } catch (err) { setError("فشل تحميل البيانات."); } finally { setLoading(false); }
+            } catch (err) { 
+                setError("فشل تحميل البيانات."); 
+            } finally { 
+                setLoading(false); 
+            }
         };
         loadData();
     }, []);
@@ -50,9 +54,7 @@ const ServicesManagementPage = () => {
             await deleteService(id);
             setServices(prev => prev.filter(s => s.id !== id));
             toast.success(`تم الحذف بنجاح!`, { id: toastId }); 
-            
-            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد الحذف
-
+            triggerGlobalRefresh(); 
         } catch (err) { 
             toast.error("حدث خطأ! تأكد من عدم ارتباطها ببيانات أخرى.", { id: toastId }); 
         } finally {
@@ -60,14 +62,35 @@ const ServicesManagementPage = () => {
         }
     };
 
-    // 🚀 تطبيق الفلترة باستخدام debouncedSearchTerm المستقر بدلاً من searchTerm المتطاير
     const filteredServices = Array.isArray(services) ? services.filter(service => {
         const matchesSearch = (service.title || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || (service.slug || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
         const matchesSection = filterSection ? service.sectionId === filterSection : true;
         return matchesSearch && matchesSection;
     }) : [];
 
-    if (loading) return <LoadingSpinner message="جاري تحميل الخدمات..." />;
+    // 🚀 الشاشة الهيكلية (Skeleton Screen) أثناء التحميل
+    if (loading) {
+        return (
+            <div className="services-page animate-fade-in text-end" dir="rtl">
+                {/* هيكل الهيدر */}
+                <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-3 p-md-4 rounded-3 shadow-sm border flex-wrap gap-3">
+                    <div>
+                        <div className="skeleton skeleton-text" style={{width: '150px', height: '24px'}}></div>
+                        <div className="skeleton skeleton-text mb-0" style={{width: '100px', height: '14px'}}></div>
+                    </div>
+                    <div className="skeleton skeleton-text mb-0 rounded" style={{width: '160px', height: '38px'}}></div>
+                </div>
+                {/* هيكل الفلاتر */}
+                <div className="card border-0 shadow-sm mb-4 bg-white">
+                    <div className="card-body p-3">
+                        <div className="skeleton skeleton-text mb-0" style={{width: '100%', height: '38px'}}></div>
+                    </div>
+                </div>
+                {/* هيكل الجدول */}
+                <TableSkeleton columns={4} rows={5} />
+            </div>
+        );
+    }
 
     return (
         <div className="services-page animate-fade-in text-end" dir="rtl">
@@ -89,7 +112,6 @@ const ServicesManagementPage = () => {
                         <div className="col-12 col-md-8">
                             <div className="input-group">
                                 <span className="input-group-text bg-light border-end-0"><Search /></span>
-                                {/* 🚀 يتم تحديث searchTerm فورياً هنا، لكن الجدول لن يتأثر إلا بعد الـ Debounce */}
                                 <input type="text" className="form-control border-start-0" placeholder="ابحث عن اسم أو مسار (Slug)..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                             </div>
                         </div>
