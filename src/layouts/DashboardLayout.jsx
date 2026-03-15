@@ -1,26 +1,24 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, Suspense } from 'react'; // 🚀 استيراد Suspense
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/common/Sidebar';
 import Navbar from '../components/common/Navbar';
 import { Toaster } from 'react-hot-toast';
+import ErrorBoundary from '../components/common/ErrorBoundary'; // 🚀 استيراد ErrorBoundary
+import LoadingSpinner from '../components/common/LoadingSpinner'; // 🚀 استيراد LoadingSpinner
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
-  // 🚀 1. إنشاء State للتحكم في التحديث الشامل
   const [globalRefreshKey, setGlobalRefreshKey] = useState(0);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  // 🚀 2. الدالة السحرية التي ستجبر لوحة التحكم على التحديث
   const triggerGlobalRefresh = useCallback(() => {
     setGlobalRefreshKey(prevKey => prevKey + 1);
   }, []);
 
   return (
     <div className="dashboard-wrapper" dir="rtl">
-      {/* الإشعارات تبقى خارج المفتاح لكي لا تختفي فجأة عند التحديث */}
       <Toaster 
         position="top-center" 
         reverseOrder={false} 
@@ -49,22 +47,28 @@ const DashboardLayout = () => {
 
       <div className={`sidebar-overlay d-lg-none ${isSidebarOpen ? 'open' : ''}`} onClick={closeSidebar}></div>
 
-      {/* 🚀 3. ربط المفتاح بالـ Sidebar لتتحدث إذا كان بها إحصائيات */}
       <aside className={`sidebar-wrapper bg-dark ${isSidebarOpen ? 'open' : ''}`} key={`sidebar-${globalRefreshKey}`}>
         <Sidebar closeSidebar={closeSidebar} />
       </aside>
 
       <div className="main-wrapper bg-light">
-        {/* 🚀 4. ربط المفتاح بالـ Navbar للتحديث */}
         <header className="sticky-top bg-white shadow-sm" style={{ zIndex: 1020 }} key={`nav-${globalRefreshKey}`}>
           <Navbar toggleSidebar={toggleSidebar} />
         </header>
 
-        {/* 🚀 5. ربط المفتاح بالـ Main يجبر الصفحة المعروضة على إعادة عمل (Mount) وجلب البيانات من جديد */}
         <main className="p-3 p-md-4 flex-grow-1" key={`main-${globalRefreshKey}`}>
           <div className="container-fluid p-0">
-            {/* 🚀 6. نمرر الدالة كـ Context لجميع الصفحات الداخلية لتستطيع مناداتها */}
-            <Outlet context={{ triggerGlobalRefresh }} /> 
+            {/* 🚀 هنا السحر: جدار الحماية والتحميل يغلفان הـ Outlet مباشرة */}
+            <ErrorBoundary>
+              <Suspense fallback={
+                <div className="d-flex align-items-center justify-content-center p-5" style={{ minHeight: '60vh' }}>
+                  <LoadingSpinner message="جاري تحميل الصفحة..." />
+                </div>
+              }>
+                {/* تم تمرير الـ Context بنجاح وبدون أي انقطاع */}
+                <Outlet context={{ triggerGlobalRefresh }} /> 
+              </Suspense>
+            </ErrorBoundary>
           </div>
         </main>
 
