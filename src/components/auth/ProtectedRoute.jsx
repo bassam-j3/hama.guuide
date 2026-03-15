@@ -1,9 +1,12 @@
 import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { authService } from '../../api/services/authConfig';
 
 const ProtectedRoute = ({ requireSuperAdmin = false }) => {
     const location = useLocation();
+    
+    // 🚀 استلام السياق من الـ Layout الأب (DashboardLayout)
+    const context = useOutletContext(); 
     
     // 1. فحص هل المستخدم مسجل دخول؟
     const user = authService.getCurrentUser();
@@ -21,8 +24,8 @@ const ProtectedRoute = ({ requireSuperAdmin = false }) => {
         return <Navigate to="/admin" replace />;
     }
 
-    // 3. إذا كان مسجلاً ويملك الصلاحية، اسمح له بالمرور
-    return <Outlet />;
+    // 3. 🚀 تمرير السياق إلى الصفحات الداخلية لكي لا تنهار!
+    return <Outlet context={context} />; 
 };
 
 export default ProtectedRoute;
