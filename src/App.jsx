@@ -7,6 +7,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import LoginPage from './components/auth/LoginPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoadingSpinner from './components/common/LoadingSpinner'; // 🚀 استيراد مؤشر التحميل
+import ErrorBoundary from './components/common/ErrorBoundary'; // 🚀 استيراد جدار الحماية (Error Boundary)
 
 // 🚀 3. تحويل جميع الصفحات إلى التحميل البطيء (Lazy Loading) لزيادة سرعة الموقع
 const DashboardPage = lazy(() => import('./pages/admin/DashboardPage'));
@@ -43,15 +44,17 @@ function App() {
         {/* 🔐 (2) المسارات المحمية تحت تخطيط لوحة التحكم */}
         <Route path="/admin" element={<DashboardLayout />}>
             
-            {/* 🚀 4. تغليف المسارات الداخلية بـ Suspense لكي يظهر المؤشر أثناء تحميل كود الصفحة المعينة */}
+            {/* 🚀 4. تغليف المسارات الداخلية بـ ErrorBoundary ثم بـ Suspense */}
             <Route element={
-              <Suspense fallback={
-                <div className="d-flex align-items-center justify-content-center p-5" style={{ minHeight: '60vh' }}>
-                  <LoadingSpinner message="جاري تحميل الصفحة..." />
-                </div>
-              }>
-                <Outlet />
-              </Suspense>
+              <ErrorBoundary> {/* 🛡️ هذا الدرع يمنع الشاشة البيضاء في حال انهارت إحدى الصفحات بالأسفل */}
+                <Suspense fallback={
+                  <div className="d-flex align-items-center justify-content-center p-5" style={{ minHeight: '60vh' }}>
+                    <LoadingSpinner message="جاري تحميل الصفحة..." />
+                  </div>
+                }>
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
             }>
                 
                 {/* 🟢 مسارات مستوى (Admin) - مسموحة للجميع */}
@@ -86,7 +89,7 @@ function App() {
                     <Route path="schema" element={<SchemaManager />} />
                 </Route>
 
-            </Route> {/* نهاية الـ Suspense Route */}
+            </Route> {/* نهاية الـ ErrorBoundary والـ Suspense Route */}
 
         </Route>
 
