@@ -1,31 +1,121 @@
+/* 🚀 1. استيراد الخطوط الاحترافية من جوجل */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&family=Public+Sans:wght@300;400;500;600;700&display=swap');
+
 :root {
-  /* Design Tokens - المتغيرات الأساسية */
-  --primary-green: #198754;
-  --dark-bg: #212529;
+  /* 🎨 Design Tokens - ألوان الهوية البصرية الجديدة */
+  --primary: #0a4d44;
+  --primary-hover: #073a33; /* درجة أغمق للـ Hover */
+  --bg-light: #f6f8f8;
+  --bg-dark: #11211f;
+  
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+
+  /* 📏 Layout & Animation Tokens */
   --sidebar-width: 260px;
   --transition-speed: 0.3s;
-  --light-gray: #f8f9fa;
+
+  /* ⭕ Border Radius Tokens */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-pill: 9999px;
 }
 
-/* Global Reset */
-body {
+/* =========================================
+   Global Reset & Typography
+   ========================================= */
+html, body {
   margin: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: var(--light-gray);
-  direction: rtl; /* دعم اللغة العربية عالمياً */
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden; /* يمنع السكرول الأفقي المزعج */
+  background-color: var(--bg-light);
+  color: var(--text-main);
+  font-family: "Noto Sans Arabic", "Public Sans", sans-serif;
+  direction: rtl;
+  -webkit-font-smoothing: antialiased; /* لجعل الخطوط أنعم في الشاشات */
 }
 
-/* تخصيص السكرول بار ليبدو احترافياً */
+/* =========================================
+   Bootstrap Overrides (The Senior Way) 🚀
+   تغيير لون البوتستراب الافتراضي للألوان الخاصة بك
+   ========================================= */
+.text-primary { color: var(--primary) !important; }
+.bg-primary { background-color: var(--primary) !important; }
+.bg-dark { background-color: var(--bg-dark) !important; }
+.border-primary { border-color: var(--primary) !important; }
+
+/* تخصيص الأزرار لتبدو عصرية */
+.btn {
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+  transform: translateY(-1px); /* حركة رفع خفيفة */
+  box-shadow: 0 4px 12px rgba(10, 77, 68, 0.2);
+}
+
+.btn-outline-primary {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary);
+  color: #ffffff;
+}
+
+/* تخصيص البطاقات (Cards) لتبدو عائمة */
+.card {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03) !important;
+  background-color: #ffffff;
+}
+
+/* =========================================
+   Scrollbar Styling (سحب أنيق)
+   ========================================= */
 ::-webkit-scrollbar {
   width: 6px;
-  height: 6px; /* للسكرول الأفقي في الجداول */
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-light);
 }
 ::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 10px;
+  background: #cbd5e1;
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
-/* Sidebar & Layout Responsive Styles 🚀 */
+/* سكرول بار خاص بالقائمة الجانبية المظلمة */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { 
+  background: rgba(255, 255, 255, 0.15); 
+  border-radius: var(--radius-pill); 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { 
+  background: rgba(255, 255, 255, 0.3); 
+}
+
+/* =========================================
+   Sidebar & Layout Mechanics
+   ========================================= */
 .sidebar-wrapper { 
   position: fixed; 
   right: 0; 
@@ -33,50 +123,73 @@ body {
   width: var(--sidebar-width); 
   height: 100vh; 
   z-index: 1050; 
-  transition: transform var(--transition-speed) ease-in-out; 
+  background-color: var(--bg-dark) !important; /* تطبيق اللون الداكن */
+  transition: transform var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1); 
 }
 
 .main-wrapper { 
-  transition: margin-right var(--transition-speed) ease-in-out; 
+  transition: margin-right var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1); 
   min-height: 100vh; 
   display: flex; 
   flex-direction: column; 
 }
 
+/* طبقة التعتيم عند فتح القائمة في الجوال (بخلفية ضبابية أنيقة) */
 .sidebar-overlay { 
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
-  background: rgba(0,0,0,0.5); z-index: 1040; 
+  background: rgba(17, 33, 31, 0.5); /* نفس لون الخلفية الداكنة بشفافية */
+  backdrop-filter: blur(3px); /* تأثير ضبابي حديث */
+  z-index: 1040; 
   opacity: 0; visibility: hidden; transition: 0.3s; 
 }
 
-/* شاشات الجوال والآيباد */
+/* Responsive Breakpoints */
 @media (max-width: 991.98px) {
-  .sidebar-wrapper { transform: translateX(100%); } /* إخفاء لليمين في RTL */
-  .sidebar-wrapper.open { transform: translateX(0); } /* إظهار عند الفتح */
+  .sidebar-wrapper { transform: translateX(100%); } 
+  .sidebar-wrapper.open { transform: translateX(0); } 
   .main-wrapper { margin-right: 0 !important; }
   .sidebar-overlay.open { opacity: 1; visibility: visible; }
 }
 
-/* شاشات الكمبيوتر */
 @media (min-width: 992px) {
   .sidebar-wrapper { transform: translateX(0); }
   .main-wrapper { margin-right: var(--sidebar-width); }
 }
 
-.nav-icon-hover { transition: all 0.2s ease; cursor: pointer; }
-.nav-icon-hover:hover { background-color: #f0f2f5; color: var(--primary-green) !important; }
-.cursor-pointer { cursor: pointer; }
-.spinner-border { animation-duration: 0.75s; }
-
-/* Sidebar Scrollbar Styling */
-.custom-scrollbar::-webkit-scrollbar { width: 5px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
-
-.hover-bg-dark:hover { background-color: rgba(255, 255, 255, 0.05); color: #fff !important; }
-.hover-text-white:hover { color: #fff !important; }
-html, body {
-  overflow-x: hidden; /* يمنع ظهور شريط التمرير الأفقي المزعج في الجوال */
-  width: 100%;
+/* =========================================
+   Utilities & Animations
+   ========================================= */
+.hover-bg-dark:hover { 
+  background-color: rgba(255, 255, 255, 0.05); 
+  color: #ffffff !important; 
 }
+.hover-text-white:hover { color: #ffffff !important; }
+.cursor-pointer { cursor: pointer; }
+
+/* تأثير دخول الصفحات بسلاسة */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================
+   Skeleton Loaders
+   ========================================= */
+@keyframes skeleton-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  background-color: #e5e9eb; /* لون رمادي يناسب الخلفية الفاتحة */
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text { height: 16px; width: 100%; margin-bottom: 8px; border-radius: var(--radius-sm); }
+.skeleton-avatar { width: 40px; height: 40px; border-radius: var(--radius-pill); flex-shrink: 0; }
+.skeleton-button { height: 32px; width: 32px; border-radius: var(--radius-md); }
