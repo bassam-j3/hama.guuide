@@ -184,7 +184,7 @@ const Sidebar = ({ closeSidebar }) => {
                     
                     <div className="text-uppercase text-white-50 fw-bold mb-2 ps-3 mt-1" style={{ fontSize: '0.7rem' }}>الرئيسية</div>
                     <SidebarItem to="/admin" icon={<House size={18} />} label="الإحصائيات" end closeSidebar={closeSidebar} />
-                    <SidebarItem to="/admin/profile" icon={<PersonCircle size={18} />} label="الملف الشخصي" closeSidebar={closeSidebar} /> {/* 🚀 تمت إضافته */}
+                    {/* <SidebarItem to="/admin/profile" icon={<PersonCircle size={18} />} label="الملف الشخصي" closeSidebar={closeSidebar} /> 🚀 تمت إضافته */}
                     
                     {/* 🚀 إظهار هذه القوائم فقط لمدير النظام SuperAdmin */}
                     {isSuperAdmin && (
