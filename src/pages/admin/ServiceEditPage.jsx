@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { Save, ArrowRight, Link45deg, InfoCircle, Image as ImageIcon, Trash } from 'react-bootstrap-icons';
 import { fetchServiceById, updateService } from '../../api/services/serviceService';
 import { fetchAllSections } from '../../api/services/sectionService'; 
@@ -8,7 +8,7 @@ import schemaService from '../../api/services/schemaService';
 import { getImageUrl } from '../../api/axiosConfig'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner'; 
 import ErrorMessage from '../../components/common/ErrorMessage'; 
-import toast from 'react-hot-toast'; // 🚀 
+import toast from 'react-hot-toast'; 
 
 const getPresentationOptions = (fieldType) => {
     const map = {
@@ -29,6 +29,8 @@ const FIELD_TYPES = ["String", "Int", "DateTime", "Date", "Timespan", "Bool", "F
 const ServiceEditPage = () => {
     const { id } = useParams(); 
     const navigate = useNavigate();
+    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+
     const [formData, setFormData] = useState({ title: '', description: '', slug: '', imageUrl: '', sectionId: '', schema: [] });
     const [sections, setSections] = useState([]); 
     const [loading, setLoading] = useState(true);
@@ -69,14 +71,14 @@ const ServiceEditPage = () => {
         const file = e.target.files[0];
         if (!file) return; 
         setUploading(true); 
-        const toastId = toast.loading('جاري رفع الأيقونة...'); // 🚀
+        const toastId = toast.loading('جاري رفع الأيقونة...'); 
         try { 
             const result = await uploadFile(file);
             const finalUrl = result?.fileUrl || result;
             setFormData(p => ({ ...p, imageUrl: finalUrl })); 
-            toast.success('تم رفع الأيقونة!', { id: toastId }); // 🚀
+            toast.success('تم رفع الأيقونة!', { id: toastId }); 
         } catch { 
-            toast.error('فشل الرفع.', { id: toastId }); // 🚀
+            toast.error('فشل الرفع.', { id: toastId }); 
         } finally { 
             setUploading(false); 
         } 
@@ -84,14 +86,17 @@ const ServiceEditPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault(); setSubmitting(true);
-        const toastId = toast.loading('جاري حفظ التعديلات...'); // 🚀
+        const toastId = toast.loading('جاري حفظ التعديلات...'); 
         try {
             await updateService(id, { title: formData.title, description: formData.description, slug: formData.slug, imageUrl: formData.imageUrl, sectionId: formData.sectionId === "" ? null : formData.sectionId }); 
             await schemaService.saveSchema(id, formData.schema.filter(f => f.fieldName.trim() !== "")).catch(console.warn);
-            toast.success('تم الحفظ بنجاح!', { id: toastId }); // 🚀
+            toast.success('تم الحفظ بنجاح!', { id: toastId }); 
+            
+            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد النجاح
+
             setTimeout(() => navigate('/admin/services'), 1500); 
         } catch (err) { 
-            toast.error("فشل التحديث. تأكد من توافق البيانات.", { id: toastId }); // 🚀
+            toast.error("فشل التحديث. تأكد من توافق البيانات.", { id: toastId }); 
         } finally { setSubmitting(false); }
     };
 

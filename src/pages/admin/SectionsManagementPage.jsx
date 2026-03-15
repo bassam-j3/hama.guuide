@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { PlusLg, PencilSquare, Trash, Folder2Open, ArrowsMove, ArrowUpCircle } from 'react-bootstrap-icons';
 import { fetchAllSections, deleteSection, assignChildSection, removeChildSection } from '../../api/services/sectionService'; 
 import { getImageUrl } from '../../api/axiosConfig'; 
@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 
 const SectionsManagementPage = () => {
   const navigate = useNavigate();
+  const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
@@ -57,6 +59,9 @@ const SectionsManagementPage = () => {
       await deleteSection(id);
       setSections(prev => prev.filter(s => s.id !== id));
       toast.success(`تم حذف قسم "${title}" بنجاح!`, { id: toastId }); 
+      
+      triggerGlobalRefresh(); // 🚀 التحديث الشامل بعد الحذف
+
     } catch (err) {
       toast.error('لا يمكن حذف القسم! قد يكون مرتبطاً بخدمات أخرى.', { id: toastId }); 
     } finally {
@@ -86,7 +91,6 @@ const SectionsManagementPage = () => {
 
       if (!draggedSection || draggedSection.id === targetSection.id || draggedSection.parentId === targetSection.id) return;
 
-      // 🚀 حماية ذكية: منع وضع الأب داخل الابن (Circular Dependency Prevention)
       const isDescendant = (parentId, childId) => {
           let current = sections.find(s => s.id === childId);
           while (current) {
@@ -112,11 +116,10 @@ const SectionsManagementPage = () => {
       try {
           await assignChildSection(targetSection.id, draggedSection.id);
           
-          // 🚀 Optimistic UI Update: نحدث الواجهة فوراً بدون انتظار الباك إند
           setSections(prev => prev.map(s => s.id === draggedSection.id ? { ...s, parentId: targetSection.id } : s));
           toast.success('تم نقل القسم بنجاح!', { id: toastId });
           
-          // تحديث صامت بالخلفية لضمان المزامنة
+          triggerGlobalRefresh(); // 🚀 التحديث الشامل بعد النقل الناجح
           loadSections();
       } catch (error) {
           toast.error('فشل النقل، يرجى المحاولة لاحقاً.', { id: toastId });
@@ -133,10 +136,10 @@ const SectionsManagementPage = () => {
       try {
           await removeChildSection(childSection.parentId, childSection.id);
           
-          // 🚀 Optimistic UI Update: إزالة الارتباط محلياً فوراً
           setSections(prev => prev.map(s => s.id === childSection.id ? { ...s, parentId: null } : s));
           toast.success('تم فك الارتباط بنجاح!', { id: toastId });
           
+          triggerGlobalRefresh(); // 🚀 التحديث الشامل بعد فك الارتباط الناجح
           loadSections();
       } catch (error) {
           toast.error('فشل فك الارتباط.', { id: toastId });

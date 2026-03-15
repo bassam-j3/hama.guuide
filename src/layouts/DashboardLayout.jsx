@@ -1,17 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/common/Sidebar';
 import Navbar from '../components/common/Navbar';
-import { Toaster } from 'react-hot-toast'; // 🚀 استيراد مكتبة الإشعارات
+import { Toaster } from 'react-hot-toast';
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // 🚀 1. إنشاء State للتحكم في التحديث الشامل
+  const [globalRefreshKey, setGlobalRefreshKey] = useState(0);
+
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
+  // 🚀 2. الدالة السحرية التي ستجبر لوحة التحكم على التحديث
+  const triggerGlobalRefresh = useCallback(() => {
+    setGlobalRefreshKey(prevKey => prevKey + 1);
+  }, []);
+
   return (
     <div className="dashboard-wrapper" dir="rtl">
-      {/* 🚀 إعداد الإشعارات لتظهر في منتصف أعلى الشاشة */}
+      {/* الإشعارات تبقى خارج المفتاح لكي لا تختفي فجأة عند التحديث */}
       <Toaster 
         position="top-center" 
         reverseOrder={false} 
@@ -40,18 +49,22 @@ const DashboardLayout = () => {
 
       <div className={`sidebar-overlay d-lg-none ${isSidebarOpen ? 'open' : ''}`} onClick={closeSidebar}></div>
 
-      <aside className={`sidebar-wrapper bg-dark ${isSidebarOpen ? 'open' : ''}`}>
+      {/* 🚀 3. ربط المفتاح بالـ Sidebar لتتحدث إذا كان بها إحصائيات */}
+      <aside className={`sidebar-wrapper bg-dark ${isSidebarOpen ? 'open' : ''}`} key={`sidebar-${globalRefreshKey}`}>
         <Sidebar closeSidebar={closeSidebar} />
       </aside>
 
       <div className="main-wrapper bg-light">
-        <header className="sticky-top bg-white shadow-sm" style={{ zIndex: 1020 }}>
+        {/* 🚀 4. ربط المفتاح بالـ Navbar للتحديث */}
+        <header className="sticky-top bg-white shadow-sm" style={{ zIndex: 1020 }} key={`nav-${globalRefreshKey}`}>
           <Navbar toggleSidebar={toggleSidebar} />
         </header>
 
-        <main className="p-3 p-md-4 flex-grow-1">
+        {/* 🚀 5. ربط المفتاح بالـ Main يجبر الصفحة المعروضة على إعادة عمل (Mount) وجلب البيانات من جديد */}
+        <main className="p-3 p-md-4 flex-grow-1" key={`main-${globalRefreshKey}`}>
           <div className="container-fluid p-0">
-            <Outlet /> 
+            {/* 🚀 6. نمرر الدالة كـ Context لجميع الصفحات الداخلية لتستطيع مناداتها */}
+            <Outlet context={{ triggerGlobalRefresh }} /> 
           </div>
         </main>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { Trash, PencilSquare, PlusLg, ArrowRight, Collection, ArrowClockwise, GeoAltFill, StarFill, ArrowCounterclockwise } from 'react-bootstrap-icons';
 import { fetchPostsByServiceSlug, deletePostREST, deletePostRating } from '../../api/services/postService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 const PostsManagementPage = () => {
     const { serviceSlug } = useParams();
     const navigate = useNavigate();
+    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(null);
@@ -32,12 +34,14 @@ const PostsManagementPage = () => {
             await deletePostREST(serviceSlug, postId);
             setPosts(prev => prev.filter(p => p.id !== postId));
             toast.success("تم الحذف بنجاح", { id: toastId });
+            
+            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد الحذف
+
         } catch (err) { 
             toast.error("فشل الحذف.", { id: toastId });
         } finally { setIsProcessing(null); }
     };
 
-    // 🚀 دالة تصفير التقييم للبوست
     const handleResetRating = async (postId) => {
         if (!window.confirm(`هل أنت متأكد من تصفير تقييمات هذا البوست؟`)) return;
         const toastId = toast.loading('جاري مسح التقييمات...');
@@ -45,7 +49,9 @@ const PostsManagementPage = () => {
         try {
             await deletePostRating(postId);
             toast.success("تم تصفير التقييم بنجاح", { id: toastId });
-            loadPosts(); // إعادة تحميل للبوستات لجلب التقييم الجديد (0)
+            
+            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد مسح التقييم
+            loadPosts(); 
         } catch (err) { 
             toast.error("فشل مسح التقييم.", { id: toastId });
         } finally { setIsProcessing(null); }
@@ -83,7 +89,6 @@ const PostsManagementPage = () => {
                             <tr>
                                 <th className="ps-3 ps-md-4 py-3">العنوان</th>
                                 {columns.map(col => <th key={col} className="py-3">{col}</th>)}
-                                {/* 🚀 عمود التقييم الجديد */}
                                 <th className="text-center py-3">التقييم</th>
                                 <th className="text-center py-3 d-none d-lg-table-cell">التاريخ</th>
                                 <th className="text-center py-3">إجراءات</th>
@@ -94,8 +99,6 @@ const PostsManagementPage = () => {
                                 <tr key={post.id}>
                                     <td className="ps-3 ps-md-4 fw-bold text-dark">{post.title}</td>
                                     {columns.map(col => <td key={col} className="small"><SmartCell value={post.payload?.[col]} /></td>)}
-                                    
-                                    {/* 🚀 إظهار النجوم والتقييم */}
                                     <td className="text-center">
                                         <div className="d-flex align-items-center justify-content-center text-warning fw-bold">
                                             <StarFill className="me-1" size={14}/> 
@@ -103,7 +106,6 @@ const PostsManagementPage = () => {
                                         </div>
                                         <div className="small text-muted" style={{fontSize:'0.65rem'}}>({post.ratingCount || 0} تقييم)</div>
                                     </td>
-
                                     <td className="text-center small text-muted d-none d-lg-table-cell" dir="ltr">{post.createdAt ? new Date(post.createdAt).toLocaleDateString('en-GB') : '-'}</td>
                                     <td className="text-center px-2">
                                         <div className="btn-group btn-group-sm shadow-sm">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom"; // 🚀 استيراد useOutletContext
 import { Save, ArrowRight, InfoCircle, Image as ImageIcon, GeoAltFill, ExclamationTriangle } from "react-bootstrap-icons";
 
 import { fetchAllServices } from "../../api/services/serviceService";
@@ -10,11 +10,12 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import LocationPicker from '../../components/common/LocationPicker';
 import DynamicFieldRenderer from "../../components/posts/DynamicFieldRenderer";
-import toast from 'react-hot-toast'; // 🚀
+import toast from 'react-hot-toast'; 
 
 const PostEditPage = () => {
     const { serviceSlug, postId } = useParams(); 
     const navigate = useNavigate();
+    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج الدالة
 
     const [coreData, setCoreData] = useState({ title: "", imageUrl: "", latitude: 0, longitude: 0, addressDisplay: "" });
     const [payloadData, setPayloadData] = useState({});
@@ -87,13 +88,13 @@ const PostEditPage = () => {
     const handleDynamicFileUpload = async (key, file) => {
         if (!file) return;
         setUploadingField(key);
-        const toastId = toast.loading('جاري رفع الملف...'); // 🚀
+        const toastId = toast.loading('جاري رفع الملف...'); 
         try {
             const res = await uploadFile(file);
             setPayloadData(p => ({ ...p, [key]: res.fileUrl || res }));
-            toast.success('تم رفع الملف بنجاح', { id: toastId }); // 🚀
+            toast.success('تم رفع الملف بنجاح', { id: toastId }); 
         } catch {
-            toast.error('فشل الرفع.', { id: toastId }); // 🚀
+            toast.error('فشل الرفع.', { id: toastId }); 
         } finally {
             setUploadingField(null);
         }
@@ -105,7 +106,7 @@ const PostEditPage = () => {
         if (!coreData.title) return toast.error('العنوان مطلوب.');
 
         setSubmitting(true);
-        const toastId = toast.loading('جاري حفظ التعديلات...'); // 🚀
+        const toastId = toast.loading('جاري حفظ التعديلات...'); 
         try {
             const payloadToSend = { ...payloadData };
             schema.forEach((field) => {
@@ -126,12 +127,15 @@ const PostEditPage = () => {
             };
 
             await updatePostREST(serviceSlug, postId, body);
-            toast.success('تم حفظ التعديلات بنجاح!', { id: toastId }); // 🚀
+            toast.success('تم حفظ التعديلات بنجاح!', { id: toastId }); 
+            
+            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد النجاح
+            
             setTimeout(() => navigate(`/admin/posts/${serviceSlug}`), 1000);
 
         } catch (err) {
             const errorMsg = err.response?.data?.Errors?.[0]?.description || "فشل التحديث.";
-            toast.error(errorMsg, { id: toastId }); // 🚀
+            toast.error(errorMsg, { id: toastId }); 
         } finally {
             setSubmitting(false);
         }

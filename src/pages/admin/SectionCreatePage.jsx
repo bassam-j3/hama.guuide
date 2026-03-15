@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { ArrowRight, Save, Image as ImageIcon, Layers, Type, Link45deg } from 'react-bootstrap-icons';
 import { createSection, fetchAllSections } from '../../api/services/sectionService';
 import { uploadFile } from '../../api/services/fileService';
@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 
 const SectionCreatePage = () => {
     const navigate = useNavigate();
+    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+    
     const [formData, setFormData] = useState({ title: '', slug: '', description: '', parentId: '', imageUrl: '' });
     const [allSections, setAllSections] = useState([]); 
     const [loading, setLoading] = useState(true);
@@ -75,6 +77,9 @@ const SectionCreatePage = () => {
             const payload = { ...formData, parentId: formData.parentId === "" ? null : formData.parentId, imageUrl: formData.imageUrl || null };
             await createSection(payload);
             toast.success('تم إنشاء القسم بنجاح!', { id: toastId }); 
+            
+            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد النجاح
+            
             navigate('/admin/sections');
         } catch (err) { 
             toast.error(err.response?.data?.message || "فشل إنشاء القسم.", { id: toastId }); 

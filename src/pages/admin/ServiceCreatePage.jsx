@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { PlusCircle, Trash, Save, ArrowRight, InfoCircle, Link45deg, Image as ImageIcon } from 'react-bootstrap-icons';
 import { createService } from '../../api/services/serviceService';
 import { fetchAllSections } from '../../api/services/sectionService';
@@ -8,7 +8,7 @@ import { getImageUrl } from '../../api/axiosConfig';
 import schemaService from '../../api/services/schemaService'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
-import toast from 'react-hot-toast'; // 🚀
+import toast from 'react-hot-toast'; 
 
 const getPresentationOptions = (fieldType) => {
     const map = {
@@ -28,6 +28,8 @@ const FIELD_TYPES = ["String", "Int", "DateTime", "Date", "Timespan", "Bool", "F
 
 const ServiceCreatePage = () => {
     const navigate = useNavigate();
+    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+
     const [formData, setFormData] = useState({ title: '', description: '', slug: '', imageUrl: '', sectionId: '', schema: [] });
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -69,14 +71,14 @@ const ServiceCreatePage = () => {
         const file = e.target.files[0];
         if (!file) return;
         setUploading(true);
-        const toastId = toast.loading('جاري رفع الأيقونة...'); // 🚀
+        const toastId = toast.loading('جاري رفع الأيقونة...'); 
         try { 
             const result = await uploadFile(file);
             const finalUrl = result?.fileUrl || result;
             setFormData(prev => ({ ...prev, imageUrl: finalUrl })); 
-            toast.success('تم رفع الأيقونة!', { id: toastId }); // 🚀
+            toast.success('تم رفع الأيقونة!', { id: toastId }); 
         } catch { 
-            toast.error('فشل رفع الملف.', { id: toastId }); // 🚀
+            toast.error('فشل رفع الملف.', { id: toastId }); 
         } finally { 
             setUploading(false); 
         }
@@ -84,7 +86,7 @@ const ServiceCreatePage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault(); setSubmitting(true);
-        const toastId = toast.loading('جاري إنشاء الخدمة والمخطط...'); // 🚀
+        const toastId = toast.loading('جاري إنشاء الخدمة والمخطط...'); 
         try {
             if (!formData.sectionId) throw new Error("اختر القسم.");
             if (!formData.slug || formData.slug.length < 3) throw new Error("الرابط يجب أن يكون إنجليزي وأطول من حرفين.");
@@ -96,10 +98,13 @@ const ServiceCreatePage = () => {
                 await schemaService.saveSchema(created.id || created.Id, cleanedSchema).catch(console.warn);
             }
             
-            toast.success('تم إنشاء الخدمة بنجاح!', { id: toastId }); // 🚀
+            toast.success('تم إنشاء الخدمة بنجاح!', { id: toastId }); 
+            
+            triggerGlobalRefresh(); // 🚀 إجبار الشاشة على التحديث الشامل بعد النجاح
+
             setTimeout(() => navigate('/admin/services'), 1500);
         } catch (err) { 
-            toast.error(err.message || "فشل الحفظ.", { id: toastId }); // 🚀
+            toast.error(err.message || "فشل الحفظ.", { id: toastId }); 
         } finally { 
             setSubmitting(false); 
         }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { getSectionById, updateSection, fetchAllSections } from '../../api/services/sectionService';
 import { uploadFile } from '../../api/services/fileService'; 
 import { getImageUrl } from '../../api/axiosConfig'; 
@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 const SectionEditPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
 
     const [formData, setFormData] = useState({ title: '', slug: '', description: '', imageUrl: '', parentId: '' });
     const [allSections, setAllSections] = useState([]);
@@ -78,6 +79,9 @@ const SectionEditPage = () => {
         try {
             await updateSection(id, formData);
             toast.success('تم حفظ التعديلات بنجاح!', { id: toastId }); 
+            
+            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد النجاح
+
             setTimeout(() => navigate('/admin/sections'), 1500);
         } catch (err) { 
             toast.error('فشل حفظ التعديلات.', { id: toastId }); 

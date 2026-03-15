@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { ArrowRight, Save, InfoCircle, Image as ImageIcon, GeoAltFill, Type } from 'react-bootstrap-icons';
 import { fetchAllServices } from '../../api/services/serviceService';
 import { uploadFile } from '../../api/services/fileService';
@@ -9,11 +9,12 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import LocationPicker from '../../components/common/LocationPicker';
 import DynamicFieldRenderer from '../../components/posts/DynamicFieldRenderer';
-import toast from 'react-hot-toast'; // 🚀
+import toast from 'react-hot-toast'; 
 
 const PostCreatePage = () => {
     const { serviceSlug } = useParams();
     const navigate = useNavigate();
+    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج الدالة
 
     const [coreData, setCoreData] = useState({ title: '', imageUrl: '', latitude: null, longitude: null, addressDisplay: '' });
     const [payloadData, setPayloadData] = useState({});
@@ -72,13 +73,13 @@ const PostCreatePage = () => {
         const file = e.target.files[0];
         if (!file) return;
         setUploading(true);
-        const toastId = toast.loading('جاري رفع الصورة...'); // 🚀
+        const toastId = toast.loading('جاري رفع الصورة...'); 
         try {
             const res = await uploadFile(file);
             setCoreData(p => ({ ...p, imageUrl: res.fileUrl || res }));
-            toast.success('تم رفع الصورة!', { id: toastId }); // 🚀
+            toast.success('تم رفع الصورة!', { id: toastId }); 
         } catch {
-            toast.error('فشل رفع الصورة الأساسية.', { id: toastId }); // 🚀
+            toast.error('فشل رفع الصورة الأساسية.', { id: toastId }); 
         } finally {
             setUploading(false);
         }
@@ -87,13 +88,13 @@ const PostCreatePage = () => {
     const handleDynamicFileUpload = async (key, file) => {
         if (!file) return;
         setUploadingField(key);
-        const toastId = toast.loading('جاري رفع الملف...'); // 🚀
+        const toastId = toast.loading('جاري رفع الملف...'); 
         try {
             const res = await uploadFile(file);
             setPayloadData(p => ({ ...p, [key]: res.fileUrl || res }));
-            toast.success('تم رفع الملف بنجاح', { id: toastId }); // 🚀
+            toast.success('تم رفع الملف بنجاح', { id: toastId }); 
         } catch {
-            toast.error('فشل رفع الملف.', { id: toastId }); // 🚀
+            toast.error('فشل رفع الملف.', { id: toastId }); 
         } finally {
             setUploadingField(null);
         }
@@ -107,7 +108,7 @@ const PostCreatePage = () => {
         if (coreData.latitude === null || coreData.longitude === null) return toast.error('يرجى تحديد الموقع على الخريطة!');
 
         setSubmitting(true);
-        const toastId = toast.loading('جاري نشر البوست...'); // 🚀
+        const toastId = toast.loading('جاري نشر البوست...'); 
         try {
             const cleanedPayload = { ...payloadData };
             schema.forEach((field) => {
@@ -127,12 +128,15 @@ const PostCreatePage = () => {
             };
 
             await createPostREST(serviceSlug, body);
-            toast.success('تم النشر بنجاح!', { id: toastId }); // 🚀
+            toast.success('تم النشر بنجاح!', { id: toastId }); 
+            
+            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد النجاح
+            
             setTimeout(() => navigate(`/admin/posts/${serviceSlug}`), 1500);
 
         } catch (err) {
             const errorMsg = err.response?.data?.Errors?.[0]?.description || "فشل الحفظ.";
-            toast.error(errorMsg, { id: toastId }); // 🚀
+            toast.error(errorMsg, { id: toastId }); 
         } finally {
             setSubmitting(false);
         }

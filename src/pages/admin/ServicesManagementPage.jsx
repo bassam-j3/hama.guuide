@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
 import { PlusLg, PencilSquare, Trash, Search, Funnel, Image as ImageIcon, Folder } from 'react-bootstrap-icons';
 import { fetchAllServices, deleteService } from '../../api/services/serviceService';
 import { fetchAllSections } from '../../api/services/sectionService';
 import { getImageUrl } from '../../api/axiosConfig'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
-import toast from 'react-hot-toast'; // 🚀
+import toast from 'react-hot-toast'; 
 
 const ServicesManagementPage = () => {
     const navigate = useNavigate();
+    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+
     const [services, setServices] = useState([]);
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -37,14 +39,17 @@ const ServicesManagementPage = () => {
     const handleDelete = async (id, title) => {
         if (!window.confirm(`تأكيد حذف خدمة "${title}"؟\nسيتم حذف جميع المنشورات المرتبطة بها.`)) return;
         
-        const toastId = toast.loading('جاري حذف الخدمة...'); // 🚀
+        const toastId = toast.loading('جاري حذف الخدمة...'); 
         setIsDeleting(id);
         try {
             await deleteService(id);
             setServices(prev => prev.filter(s => s.id !== id));
-            toast.success(`تم الحذف بنجاح!`, { id: toastId }); // 🚀
+            toast.success(`تم الحذف بنجاح!`, { id: toastId }); 
+            
+            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد الحذف
+
         } catch (err) { 
-            toast.error("حدث خطأ! تأكد من عدم ارتباطها ببيانات أخرى.", { id: toastId }); // 🚀
+            toast.error("حدث خطأ! تأكد من عدم ارتباطها ببيانات أخرى.", { id: toastId }); 
         } finally {
             setIsDeleting(null);
         }
