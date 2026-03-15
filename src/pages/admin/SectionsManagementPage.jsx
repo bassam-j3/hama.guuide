@@ -1,26 +1,28 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { PlusLg, PencilSquare, Trash, Folder2Open, ArrowsMove, ArrowUpCircle } from 'react-bootstrap-icons';
-import { fetchAllSections, deleteSection, assignChildSection, removeChildSection } from '../../api/services/sectionService'; 
 import { getImageUrl } from '../../api/axiosConfig'; 
 import ErrorMessage from '../../components/common/ErrorMessage';
 import TableSkeleton from '../../components/common/TableSkeleton';
 import toast from 'react-hot-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+// 🚀 استخدام هوكات الأقسام الموحدة
+import { useSections, useDeleteSection, useAssignChildSection, useRemoveChildSection } from '../../hooks/api/useSections';
 
 const SectionsManagementPage = () => {
   const navigate = useNavigate();
   const { triggerGlobalRefresh } = useOutletContext(); 
-  const queryClient = useQueryClient();
 
   const [draggedSection, setDraggedSection] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
 
-  // 🚀 جلب البيانات باستخدام React Query
-  const { data: sectionsData, isLoading, isError } = useQuery({
-    queryKey: ['sections'],
-    queryFn: fetchAllSections
-  });
+  // 🚀 جلب البيانات
+  const { data: sectionsData, isLoading, isError } = useSections();
+
+  // 🚀 العمليات (Mutations)
+  const deleteMutation = useDeleteSection();
+  const assignMutation = useAssignChildSection(); // تأكد من إنشاء هذا الهوك في useSections.js
+  const removeMutation = useRemoveChildSection(); // تأكد من إنشاء هذا الهوك في useSections.js
 
   const sections = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.items || sectionsData?.data || []);
 
@@ -36,35 +38,6 @@ const SectionsManagementPage = () => {
     };
     return buildHierarchy(sections);
   }, [sections]);
-
-  // 🚀 هندسة الحذف والعمليات
-  const deleteMutation = useMutation({
-    mutationFn: deleteSection,
-    onSuccess: () => {
-      toast.success(`تم الحذف!`);
-      queryClient.invalidateQueries(['sections']); 
-      triggerGlobalRefresh(); 
-    },
-    onError: () => toast.error('فشل الحذف! قد يكون مرتبطاً بخدمات.')
-  });
-
-  const assignMutation = useMutation({
-    mutationFn: ({ parentId, childId }) => assignChildSection(parentId, childId),
-    onSuccess: () => {
-        toast.success('تم نقل القسم!');
-        queryClient.invalidateQueries(['sections']);
-        triggerGlobalRefresh();
-    }
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: ({ parentId, childId }) => removeChildSection(parentId, childId),
-    onSuccess: () => {
-        toast.success('تم فك الارتباط!');
-        queryClient.invalidateQueries(['sections']);
-        triggerGlobalRefresh();
-    }
-  });
 
   const isProcessing = deleteMutation.isPending || assignMutation.isPending || removeMutation.isPending;
 
@@ -82,7 +55,7 @@ const SectionsManagementPage = () => {
         </button>
       </div>
 
-      {isError && <ErrorMessage message="تعذر جلب الأقسام." onRetry={() => queryClient.invalidateQueries(['sections'])} />}
+      {isError && <ErrorMessage message="تعذر جلب الأقسام." />}
 
       <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
         <div className="table-responsive">
@@ -121,10 +94,14 @@ const SectionsManagementPage = () => {
                   <td className="text-center px-4">
                     <div className="d-flex justify-content-center gap-2">
                       {section.parentId && (
-                        <button className="btn btn-sm btn-light text-warning" onClick={() => removeMutation.mutate({ parentId: section.parentId, childId: section.id })} disabled={isProcessing}><ArrowUpCircle /></button>
+                        <button className="btn btn-sm btn-light text-warning" onClick={() => removeMutation.mutate({ parentId: section.parentId, childId: section.id })} disabled={isProcessing}>
+                            {removeMutation.isPending && removeMutation.variables?.childId === section.id ? <span className="spinner-border spinner-border-sm" /> : <ArrowUpCircle />}
+                        </button>
                       )}
                       <button className="btn btn-sm btn-light text-primary" onClick={() => navigate(`/admin/sections/edit/${section.id}`)}><PencilSquare /></button>
-                      <button className="btn btn-sm btn-light text-danger" onClick={() => deleteMutation.mutate(section.id)} disabled={isProcessing}><Trash /></button>
+                      <button className="btn btn-sm btn-light text-danger" onClick={() => { if(window.confirm('حذف؟')) deleteMutation.mutate(section.id) }} disabled={isProcessing}>
+                        {deleteMutation.isPending && deleteMutation.variables === section.id ? <span className="spinner-border spinner-border-sm" /> : <Trash />}
+                      </button>
                     </div>
                   </td>
                 </tr>

@@ -1,34 +1,28 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { PlusLg, PencilSquare, Trash, Search, Funnel, Image as ImageIcon, Folder } from 'react-bootstrap-icons';
-import { fetchAllServices, deleteService } from '../../api/services/serviceService';
-import { fetchAllSections } from '../../api/services/sectionService';
 import { getImageUrl } from '../../api/axiosConfig'; 
 import ErrorMessage from '../../components/common/ErrorMessage';
 import toast from 'react-hot-toast'; 
 import { useDebounce } from '../../hooks/useDebounce';
 import TableSkeleton from '../../components/common/TableSkeleton'; 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+// 🚀 استيراد الهوكات المخصصة بدلاً من useQuery المباشر
+import { useServices, useDeleteService } from '../../hooks/api/useServices';
+import { useSections } from '../../hooks/api/useSections';
 
 const ServicesManagementPage = () => {
     const navigate = useNavigate();
     const { triggerGlobalRefresh } = useOutletContext(); 
-    const queryClient = useQueryClient();
 
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300); 
     const [filterSection, setFilterSection] = useState('');
 
-    // 🚀 جلب البيانات باستخدام React Query
-    const { data: rawServices, isLoading: loadingServices, isError: errorServices } = useQuery({
-        queryKey: ['services'],
-        queryFn: fetchAllServices
-    });
-
-    const { data: rawSections } = useQuery({
-        queryKey: ['sections'],
-        queryFn: fetchAllSections
-    });
+    // 🚀 استخدام الهوكات الذكية
+    const { data: rawServices, isLoading: loadingServices, isError: errorServices } = useServices();
+    const { data: rawSections } = useSections();
+    const deleteMutation = useDeleteService(); // يحتوي داخله على logic التحديث و الـ Toast
 
     const services = rawServices?.data || rawServices?.items || rawServices || [];
     const sections = rawSections?.data || rawSections?.items || rawSections || [];
@@ -36,17 +30,6 @@ const ServicesManagementPage = () => {
     const sectionsMap = useMemo(() => {
         return Array.isArray(sections) ? sections.reduce((acc, sec) => { acc[sec.id] = sec.title; return acc; }, {}) : {};
     }, [sections]);
-
-    // 🚀 هندسة الحذف باستخدام Mutation
-    const deleteMutation = useMutation({
-        mutationFn: deleteService,
-        onSuccess: () => {
-            toast.success('تم الحذف بنجاح!');
-            queryClient.invalidateQueries(['services']); 
-            triggerGlobalRefresh(); 
-        },
-        onError: () => toast.error('حدث خطأ! تأكد من عدم ارتباطها ببيانات أخرى.')
-    });
 
     const handleDelete = (id, title) => {
         if (window.confirm(`تأكيد حذف خدمة "${title}"؟`)) {
