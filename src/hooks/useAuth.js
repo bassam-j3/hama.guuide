@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUser } from '../api/services/authConfig';
+import { authService } from '../api/services/authConfig'; // 🚀 1. استيراد authService بدلاً من getUser
 
 /**
  * Custom Hook لإدارة وقراءة صلاحيات المستخدم الحالي
@@ -10,12 +10,13 @@ export const useAuth = () => {
     const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
-        const currentUser = getUser();
+        // 🚀 2. استخدام الدالة الصحيحة من authService
+        const currentUser = authService.getCurrentUser(); 
+        
         if (currentUser) {
             setUser(currentUser);
             
             // قراءة الصلاحيات بناءً على الـ Role
-            // الباك إند قد يرسل role كـ String أو مصفوفة من الـ roles
             const role = currentUser.role || currentUser.Role;
             const roles = currentUser.roles || currentUser.Roles || [];
 
