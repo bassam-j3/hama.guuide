@@ -3,11 +3,14 @@ import {
   fetchAllSections, 
   deleteSection, 
   assignChildSection, 
-  removeChildSection 
+  removeChildSection,
+  getSectionServices,
+  linkServiceToSection,
+  removeServiceFromSection
 } from '../../api/services/sectionService';
 import toast from 'react-hot-toast';
 
-// جلب جميع الأقسام
+// 🚀 جلب جميع الأقسام
 export const useSections = () => {
   return useQuery({
     queryKey: ['sections'],
@@ -15,7 +18,7 @@ export const useSections = () => {
   });
 };
 
-// حذف قسم
+// 🚀 حذف قسم
 export const useDeleteSection = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -28,28 +31,45 @@ export const useDeleteSection = () => {
   });
 };
 
-// 🚀 إضافة: ربط قسم بقسم آخر (نقل/سحب وإفلات)
-export const useAssignChildSection = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ parentId, childId }) => assignChildSection(parentId, childId),
-    onSuccess: () => {
-      toast.success('تم نقل القسم بنجاح');
-      queryClient.invalidateQueries(['sections']);
-    },
-    onError: () => toast.error('فشل نقل القسم')
-  });
+// ==========================================
+// 🌟 القسم الجديد: إدارة ربط الخدمات بالأقسام
+// ==========================================
+
+// 1. جلب الخدمات المرتبطة بقسم محدد
+export const useSectionServices = (sectionId) => {
+    return useQuery({
+      queryKey: ['section-services', sectionId],
+      queryFn: () => getSectionServices(sectionId),
+      enabled: !!sectionId, // لا تقم بالجلب إذا لم يكن الـ ID موجوداً
+    });
 };
 
-// 🚀 إضافة: فك ارتباط قسم (جعله رئيساً)
-export const useRemoveChildSection = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ parentId, childId }) => removeChildSection(parentId, childId),
-    onSuccess: () => {
-      toast.success('تم فك الارتباط بنجاح');
-      queryClient.invalidateQueries(['sections']);
-    },
-    onError: () => toast.error('فشل عملية فك الارتباط')
-  });
+// 2. ربط خدمة بالقسم
+export const useLinkServiceToSection = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+      mutationFn: ({ sectionId, serviceId }) => linkServiceToSection(sectionId, serviceId),
+      onSuccess: (_, variables) => {
+        toast.success('تم ربط الخدمة بالقسم بنجاح!');
+        // تحديث كاش الخدمات لهذا القسم فوراً
+        queryClient.invalidateQueries(['section-services', variables.sectionId]);
+        queryClient.invalidateQueries(['services']); 
+      },
+      onError: () => toast.error('فشل ربط الخدمة. تأكد من البيانات.')
+    });
+};
+
+// 3. فك ارتباط خدمة من القسم
+export const useRemoveServiceFromSection = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+      mutationFn: ({ serviceId }) => removeServiceFromSection(serviceId),
+      onSuccess: (_, variables) => {
+        toast.success('تم فك ارتباط الخدمة بنجاح');
+        // تحديث كاش الخدمات لهذا القسم فوراً
+        queryClient.invalidateQueries(['section-services', variables.sectionId]);
+        queryClient.invalidateQueries(['services']);
+      },
+      onError: () => toast.error('فشل عملية فك الارتباط.')
+    });
 };

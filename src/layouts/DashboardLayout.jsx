@@ -31,7 +31,7 @@ const DashboardLayout = () => {
       <style>{`
         .sidebar-wrapper { position: fixed; right: 0; top: 0; width: 280px; height: 100vh; z-index: 1050; transition: transform 0.3s ease-in-out; }
         .main-wrapper { transition: margin-right 0.3s ease-in-out; min-height: 100vh; display: flex; flex-direction: column; }
-        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 1040; opacity: 0; visibility: hidden; transition: 0.3s; }
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background:  z-index: 1040; opacity: 0; visibility: hidden; transition: 0.3s; }
         
         @media (max-width: 991.98px) {
           .sidebar-wrapper { transform: translateX(100%); } 
