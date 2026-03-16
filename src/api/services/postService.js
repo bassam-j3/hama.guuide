@@ -1,6 +1,6 @@
 import axiosInstance, { graphqlInstance } from '../axiosConfig';
 
-// 🚀 تم تحديث الاستعلام ليتوافق مع التعديلات الأخيرة للباك-إند (Location و إزالة isDeleted)
+// 🚀 جلب البوستات مع الإحداثيات الصحيحة
 export const fetchPostsByServiceSlug = async (serviceSlug) => {
   const query = `
     query GetServicePosts($serviceSlug: String!) {
@@ -24,12 +24,13 @@ export const fetchPostsByServiceSlug = async (serviceSlug) => {
   try {
     const response = await graphqlInstance.post('', { 
         query, 
-        variables: { serviceSlug: serviceSlug } 
+        variables: { serviceSlug } 
     });
     
     if (response.data.errors) return [];
     const nodes = response.data?.data?.posts?.nodes || [];
     
+    // تحويل الـ Payload إلى Object إذا كان نصاً، ليتعامل معه React بسهولة
     return nodes.map(post => ({
       ...post, 
       payload: typeof post.payload === 'string' ? JSON.parse(post.payload) : (post.payload || {})
@@ -53,23 +54,24 @@ export const getPostById = async (serviceSlug, postId) => {
     return { ...post, latitude: parseFloat(latitude) || 0, longitude: parseFloat(longitude) || 0, payload: parsedPayload };
 };
 
-export const createPostREST = async (serviceSlug, postData) => {
+// 🚀 إصلاح خطأ `postData is not defined`
+export const createPostREST = async (serviceSlug, data) => {
   return await axiosInstance.post(`/${serviceSlug}`, {
-    title: postData.title, 
-    imageUrl: postData.imageUrl || null, 
-    payload: postData.payload, // 👈 إرسالها كـ Object كما كان يعمل في الكود القديم
-    latitude: parseFloat(postData.latitude) || 0, 
-    longitude: parseFloat(postData.longitude) || 0
+    title: data.title, 
+    imageUrl: data.imageUrl || null, 
+    payload: data.payload, // إرسال كـ Object كما يحبه الـ Backend القديم
+    latitude: parseFloat(data.latitude) || 0, 
+    longitude: parseFloat(data.longitude) || 0
   });
 };
 
-export const updatePostREST = async (serviceSlug, postId, postData) => {
+export const updatePostREST = async (serviceSlug, postId, data) => {
   return await axiosInstance.put(`/${serviceSlug}/${postId}`, {
-    title: postData.title, 
-    payload: postData.payload,
-    imageUrl: postData.imageUrl || null, 
-    latitude: parseFloat(postData.latitude) || 0, 
-    longitude: parseFloat(postData.longitude) || 0
+    title: data.title, 
+    payload: data.payload,
+    imageUrl: data.imageUrl || null, 
+    latitude: parseFloat(data.latitude) || 0, 
+    longitude: parseFloat(data.longitude) || 0
   });
 };
 
