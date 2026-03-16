@@ -8,14 +8,21 @@ import { getImageUrl } from '../../api/axiosConfig';
 import LocationPicker from '../common/LocationPicker';
 
 const DynamicFieldRenderer = ({ 
-    field, 
+    fieldSchema, // 🚀 تغيير الاسم ليتوافق مع ما أرسلناه في صفحة الـ Create
     value, 
     onChange, 
     onFileUpload, 
     onAddressUpdate, 
     uploadingField 
 }) => {
+    // 🚀 التوافقية العكسية إذا تم إرسال 'field' بدلاً من 'fieldSchema'
+    const field = fieldSchema || arguments[0].field;
     const { fieldType, fieldName, isRequired, allowedTypes, presentation } = field;
+
+    // 🚀 دالة ذكية لإرسال القيمة للـ Parent (للتوافق مع React Hook Form)
+    const handleChange = (val) => {
+        onChange(val); // نرسل القيمة فقط ليتعامل معها الـ Controller
+    };
 
     const FieldWrapper = ({ children, icon }) => (
         <div className="mb-4 animate-fade-in">
@@ -37,7 +44,7 @@ const DynamicFieldRenderer = ({
                         role="switch"
                         id={`switch-${fieldName}`}
                         checked={!!value}
-                        onChange={(e) => onChange(fieldName, e.target.checked)} 
+                        onChange={(e) => handleChange(e.target.checked)} 
                         style={{width: '2.5em', height: '1.25em'}}
                     />
                     <label className="form-check-label small fw-bold cursor-pointer" htmlFor={`switch-${fieldName}`}>
@@ -54,7 +61,6 @@ const DynamicFieldRenderer = ({
                 <label className="form-label small fw-bold mb-2 d-flex align-items-center gap-2">
                     <ImageIcon className="text-primary"/> {fieldName} {isRequired && <span className="text-danger">*</span>}
                 </label>
-                {/* 🚀 متجاوب: flex-wrap و w-100 */}
                 <div className="d-flex align-items-center flex-wrap gap-3">
                     <div className="bg-light border rounded p-1 d-flex align-items-center justify-content-center position-relative shadow-sm flex-shrink-0" style={{width: 80, height: 80}}>
                         {value ? (
@@ -69,13 +75,15 @@ const DynamicFieldRenderer = ({
                             id={`img-${fieldName}`} 
                             className="d-none" 
                             accept="image/*"
-                            onChange={(e) => onFileUpload(fieldName, e.target.files[0])} 
-                            disabled={uploadingField !== null}
+                            onChange={(e) => {
+                                if (onFileUpload) onFileUpload(fieldName, e.target.files[0], handleChange);
+                            }} 
+                            disabled={uploadingField === fieldName}
                         />
                         
                         {value ? (
                             <button type="button" className="btn btn-outline-danger btn-sm w-100 dashed-border py-2"
-                                onClick={() => onChange(fieldName, '')}>
+                                onClick={() => handleChange('')}>
                                 <Trash className="me-2"/> حذف الصورة
                             </button>
                         ) : (
@@ -96,17 +104,18 @@ const DynamicFieldRenderer = ({
                 <label className="form-label small fw-bold mb-2 d-flex align-items-center gap-2">
                     <FileEarmarkText className="text-secondary"/> {fieldName} {isRequired && <span className="text-danger">*</span>}
                 </label>
-                {/* 🚀 متجاوب: flex-nowrap للحفاظ على الأيقونة بجانب المربع */}
                 <div className="input-group flex-nowrap">
                     <input 
                         type="file" 
                         id={`file-${fieldName}`} 
                         className="form-control text-truncate"
-                        onChange={(e) => onFileUpload(fieldName, e.target.files[0])} 
-                        disabled={uploadingField !== null}
+                        onChange={(e) => {
+                             if (onFileUpload) onFileUpload(fieldName, e.target.files[0], handleChange);
+                        }} 
+                        disabled={uploadingField === fieldName}
                     />
                     {value && (
-                        <button className="btn btn-danger flex-shrink-0" type="button" onClick={() => onChange(fieldName, '')}>
+                        <button className="btn btn-danger flex-shrink-0" type="button" onClick={() => handleChange('')}>
                             <Trash />
                         </button>
                     )}
@@ -127,12 +136,14 @@ const DynamicFieldRenderer = ({
                         placeholder="اختر من الخريطة..."
                         value={value || ''}
                         readOnly 
-                        required={isRequired}
                         style={{backgroundColor: '#fff'}}
                     />
                     <div className="flex-shrink-0">
                         <LocationPicker 
-                            onLocationSelect={(lat, lng, addr) => onAddressUpdate(fieldName, lat, lng, addr)} 
+                            onLocationSelect={(lat, lng, addr) => {
+                                if(onAddressUpdate) onAddressUpdate(fieldName, lat, lng, addr, handleChange);
+                                else handleChange(JSON.stringify([lat, lng])); // Default fallback
+                            }} 
                         />
                     </div>
                 </div>
@@ -146,8 +157,7 @@ const DynamicFieldRenderer = ({
                 <select 
                     className="form-select shadow-sm" 
                     value={value || ''}
-                    required={isRequired}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
+                    onChange={(e) => handleChange(e.target.value)}
                 >
                     <option value="">-- اختر من القائمة --</option>
                     {allowedTypes && allowedTypes.map((opt, idx) => {
@@ -167,8 +177,7 @@ const DynamicFieldRenderer = ({
                     type="datetime-local" 
                     className="form-control ltr-input"
                     value={value || ''}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
-                    required={isRequired}
+                    onChange={(e) => handleChange(e.target.value)}
                 />
             </FieldWrapper>
         );
@@ -181,8 +190,7 @@ const DynamicFieldRenderer = ({
                     type="date" 
                     className="form-control ltr-input"
                     value={value || ''}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
-                    required={isRequired}
+                    onChange={(e) => handleChange(e.target.value)}
                 />
             </FieldWrapper>
         );
@@ -196,8 +204,7 @@ const DynamicFieldRenderer = ({
                     step="1" 
                     className="form-control ltr-input"
                     value={value || ''}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
-                    required={isRequired}
+                    onChange={(e) => handleChange(e.target.value)}
                 />
             </FieldWrapper>
         );
@@ -211,9 +218,8 @@ const DynamicFieldRenderer = ({
                     step="1"
                     className="form-control"
                     placeholder="0"
-                    value={value || ''}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
-                    required={isRequired}
+                    value={value !== undefined ? value : ''}
+                    onChange={(e) => handleChange(e.target.value)}
                 />
             </FieldWrapper>
         );
@@ -227,9 +233,8 @@ const DynamicFieldRenderer = ({
                     step="any"
                     className="form-control"
                     placeholder="0.00"
-                    value={value || ''}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
-                    required={isRequired}
+                    value={value !== undefined ? value : ''}
+                    onChange={(e) => handleChange(e.target.value)}
                 />
             </FieldWrapper>
         );
@@ -244,8 +249,7 @@ const DynamicFieldRenderer = ({
                     dir="ltr"
                     placeholder="name@example.com"
                     value={value || ''}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
-                    required={isRequired}
+                    onChange={(e) => handleChange(e.target.value)}
                 />
             </FieldWrapper>
         );
@@ -260,8 +264,7 @@ const DynamicFieldRenderer = ({
                     dir="ltr"
                     placeholder="+963 9xx xxx xxx"
                     value={value || ''}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
-                    required={isRequired}
+                    onChange={(e) => handleChange(e.target.value)}
                 />
             </FieldWrapper>
         );
@@ -278,8 +281,7 @@ const DynamicFieldRenderer = ({
                     className="form-control font-monospace small" 
                     rows={5}
                     value={displayValue}
-                    onChange={(e) => onChange(fieldName, e.target.value)}
-                    required={isRequired}
+                    onChange={(e) => handleChange(e.target.value)}
                     placeholder={fieldType === 'JSON' ? '{"key": "value"}' : 'أدخل النص هنا...'}
                     dir={fieldType === 'JSON' || presentation === 'كود' ? "ltr" : "rtl"}
                 />
@@ -294,8 +296,7 @@ const DynamicFieldRenderer = ({
                 type="text" 
                 className="form-control"
                 value={value || ''}
-                onChange={(e) => onChange(fieldName, e.target.value)}
-                required={isRequired}
+                onChange={(e) => handleChange(e.target.value)}
             />
         </FieldWrapper>
     );
