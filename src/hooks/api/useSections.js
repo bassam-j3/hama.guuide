@@ -32,7 +32,35 @@ export const useDeleteSection = () => {
 };
 
 // ==========================================
-// 🌟 القسم الجديد: إدارة ربط الخدمات بالأقسام
+// 🌟 إدارة الأقسام الفرعية (Sub-sections)
+// ==========================================
+
+export const useAssignChildSection = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ parentId, childId }) => assignChildSection(parentId, childId),
+    onSuccess: () => {
+      toast.success('تم ربط القسم الفرعي بنجاح');
+      queryClient.invalidateQueries(['sections']);
+    },
+    onError: () => toast.error('فشل ربط القسم الفرعي.')
+  });
+};
+
+export const useRemoveChildSection = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ parentId, childId }) => removeChildSection(parentId, childId),
+    onSuccess: () => {
+      toast.success('تم فك ارتباط القسم الفرعي');
+      queryClient.invalidateQueries(['sections']);
+    },
+    onError: () => toast.error('فشل فك الارتباط.')
+  });
+};
+
+// ==========================================
+// 🌟 إدارة ربط الخدمات بالأقسام (Services Linking)
 // ==========================================
 
 // 1. جلب الخدمات المرتبطة بقسم محدد
@@ -51,7 +79,6 @@ export const useLinkServiceToSection = () => {
       mutationFn: ({ sectionId, serviceId }) => linkServiceToSection(sectionId, serviceId),
       onSuccess: (_, variables) => {
         toast.success('تم ربط الخدمة بالقسم بنجاح!');
-        // تحديث كاش الخدمات لهذا القسم فوراً
         queryClient.invalidateQueries(['section-services', variables.sectionId]);
         queryClient.invalidateQueries(['services']); 
       },
@@ -66,7 +93,6 @@ export const useRemoveServiceFromSection = () => {
       mutationFn: ({ serviceId }) => removeServiceFromSection(serviceId),
       onSuccess: (_, variables) => {
         toast.success('تم فك ارتباط الخدمة بنجاح');
-        // تحديث كاش الخدمات لهذا القسم فوراً
         queryClient.invalidateQueries(['section-services', variables.sectionId]);
         queryClient.invalidateQueries(['services']);
       },
