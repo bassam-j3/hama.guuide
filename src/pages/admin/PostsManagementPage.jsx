@@ -5,9 +5,11 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import toast from 'react-hot-toast';
 
-// 🚀 1. استيراد الهوكات الذكية التي أنشأناها
 import { usePostsBySlug, useDeletePost, useResetPostRating } from '../../hooks/api/usePosts';
-import { useQueryClient } from '@tanstack/react-query'; // للتحكم في التحديث اليدوي
+import { useQueryClient } from '@tanstack/react-query'; 
+
+// 🚀 أداة الـ Toast المخصصة
+import { confirmAction } from '../../utils/alerts';
 
 const PostsManagementPage = () => {
     const { serviceSlug } = useParams();
@@ -15,9 +17,8 @@ const PostsManagementPage = () => {
     const { triggerGlobalRefresh } = useOutletContext(); 
     const queryClient = useQueryClient();
 
-    const [isProcessing, setIsProcessing] = useState(null); // لإظهار مؤشر تحميل على الأزرار الفردية
+    const [isProcessing, setIsProcessing] = useState(null); 
 
-    // 🚀 2. استخدام الهوكات: سطر واحد يجلب لك الداتا، التحميل، والأخطاء!
     const { data: postsData, isLoading, isError } = usePostsBySlug(serviceSlug);
     const deleteMutation = useDeletePost(serviceSlug);
     const resetRatingMutation = useResetPostRating(serviceSlug);
@@ -25,29 +26,31 @@ const PostsManagementPage = () => {
     const posts = Array.isArray(postsData) ? postsData : (postsData?.items || postsData?.data || []);
 
     const handleDelete = async (postId, postTitle) => {
-        if (!window.confirm(`هل أنت متأكد من حذف البوست "${postTitle}"؟`)) return;
-        setIsProcessing(postId);
-        try {
-            // 🚀 الـ Mutation يتولى أمر الـ Toast والتحديث في الخلفية تلقائياً
-            await deleteMutation.mutateAsync(postId);
-            triggerGlobalRefresh(); 
-        } finally {
-            setIsProcessing(null);
-        }
+        // 🚀 استخدام Toast بدلاً من window.confirm
+        confirmAction(`هل أنت متأكد من حذف البوست "${postTitle}"؟`, async () => {
+            setIsProcessing(postId);
+            try {
+                await deleteMutation.mutateAsync(postId);
+                triggerGlobalRefresh(); 
+            } finally {
+                setIsProcessing(null);
+            }
+        });
     };
 
     const handleResetRating = async (postId) => {
-        if (!window.confirm(`هل أنت متأكد من تصفير تقييمات هذا البوست؟`)) return;
-        setIsProcessing(`rating-${postId}`);
-        try {
-            await resetRatingMutation.mutateAsync(postId);
-            triggerGlobalRefresh(); 
-        } finally {
-            setIsProcessing(null);
-        }
+        // 🚀 استخدام Toast لعملية تصفير التقييم أيضاً
+        confirmAction(`هل أنت متأكد من تصفير تقييمات هذا البوست؟`, async () => {
+            setIsProcessing(`rating-${postId}`);
+            try {
+                await resetRatingMutation.mutateAsync(postId);
+                triggerGlobalRefresh(); 
+            } finally {
+                setIsProcessing(null);
+            }
+        });
     };
 
-    // استخراج الأعمدة الديناميكية
     const columns = useMemo(() => {
         if (!posts || posts.length === 0) return [];
         const keys = new Set();
@@ -57,7 +60,6 @@ const PostsManagementPage = () => {
         return Array.from(keys);
     }, [posts]);
 
-    // 🚀 3. واجهة التحميل أثناء الجلب لأول مرة
     if (isLoading) return <LoadingSpinner message="جاري جلب بيانات الخدمة..." />;
 
     return (
@@ -68,14 +70,12 @@ const PostsManagementPage = () => {
                     <span className="text-muted small">عدد السجلات: {posts.length}</span>
                 </div>
                 <div className="d-flex flex-wrap gap-2 w-100 w-md-auto">
-                    {/* 🚀 زر التحديث يجبر React Query على جلب البيانات من السيرفر مجدداً */}
                     <button className="btn btn-light btn-sm border flex-grow-1 flex-md-grow-0" onClick={() => queryClient.invalidateQueries(['posts', serviceSlug])}><ArrowClockwise /></button>
                     <button className="btn btn-outline-secondary btn-sm flex-grow-1 flex-md-grow-0" onClick={() => navigate('/admin/posts')}><ArrowRight className="ms-1" /> رجوع</button>
                     <button className="btn btn-success btn-sm px-3 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2 w-100 w-md-auto mt-2 mt-md-0" onClick={() => navigate(`/admin/services/${serviceSlug}/posts/create`)}><PlusLg /> إضافة جديد</button>
                 </div>
             </div>
 
-            {/* عرض الخطأ إن وجد، مع زر لإعادة المحاولة */}
             {isError && <ErrorMessage message={`تعذر جلب البيانات للخدمة: ${serviceSlug}`} onRetry={() => queryClient.invalidateQueries(['posts', serviceSlug])} />}
 
             {!isError && (

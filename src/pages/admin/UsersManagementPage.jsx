@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Modal, Button, Form, Badge } from 'react-bootstrap';
-import { PersonPlus, PencilSquare, Trash, PersonBadge, Envelope, Telephone, People } from 'react-bootstrap-icons';
+import { PersonPlus, PencilSquare, Trash, PersonBadge, People, SortAlphaDown, SortAlphaUp } from 'react-bootstrap-icons';
 import { userService } from '../../api/services/userService';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import Pagination from '../../components/common/Pagination'; 
@@ -9,10 +9,17 @@ import TableSkeleton from '../../components/common/TableSkeleton';
 import toast from 'react-hot-toast'; 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+// 🚀 أداة الـ Toast المخصصة
+import { confirmAction } from '../../utils/alerts';
+
 const UsersManagementPage = () => {
     const { triggerGlobalRefresh } = useOutletContext(); 
     const queryClient = useQueryClient();
+    
+    // 🚀 حالات الترقيم والترتيب
     const [currentPage, setCurrentPage] = useState(1);
+    const [sortBy, setSortBy] = useState('userName');
+    const [sortAsc, setSortAsc] = useState(true);
     const PAGE_SIZE = 10;
 
     const [showModal, setShowModal] = useState(false);
@@ -21,16 +28,16 @@ const UsersManagementPage = () => {
     const initialFormState = { userName: '', email: '', phoneNumber: '', password: '', roles: ['Admin'] };
     const [formData, setFormData] = useState(initialFormState);
 
+    // 🚀 جلب البيانات مع إرسال بارامترات الترتيب للـ Service
     const { data: usersData, isLoading, isError } = useQuery({
-        queryKey: ['users', currentPage],
-        queryFn: () => userService.getAllUsers(currentPage, PAGE_SIZE),
+        queryKey: ['users', currentPage, sortBy, sortAsc],
+        queryFn: () => userService.getAllUsers(currentPage, PAGE_SIZE, sortBy, sortAsc),
         placeholderData: (previousData) => previousData, 
     });
 
-    const users = usersData?.items || usersData?.data || usersData || [];
-    const totalPages = usersData?.totalPages || 1;
+    const users = usersData?.items || usersData?.data?.items || usersData || [];
+    const totalPages = usersData?.totalPages || usersData?.data?.totalPages || 1;
 
-    // 🚀 تحديث معالج الأخطاء لقراءة سبب الرفض من الباك-إند
     const userMutation = useMutation({
         mutationFn: (data) => isEditing ? userService.updateUser(currentUser.id, data) : userService.createUser(data),
         onSuccess: () => {
@@ -40,25 +47,20 @@ const UsersManagementPage = () => {
             setShowModal(false);
         },
         onError: (error) => {
-            // 💡 محاولة قراءة الخطأ القادم من الباك-إند (ProblemDetails)
             let errorMessage = "فشل الحفظ! تأكد من صحة البيانات.";
-            
             if (error.response?.data?.Errors && error.response.data.Errors.length > 0) {
-                // إذا كان الخطأ من نوع مصفوفة أخطاء (مثل خطأ كلمة المرور)
                 errorMessage = error.response.data.Errors[0].description;
             } else if (error.response?.data?.detail) {
-                // إذا كان الخطأ نصاً مباشراً
                 errorMessage = error.response.data.detail;
             }
-
-            toast.error(errorMessage); // عرض السبب الفعلي للمستخدم
+            toast.error(errorMessage); 
         }
     });
 
     const deleteMutation = useMutation({
         mutationFn: userService.deleteUser,
         onSuccess: () => {
-            toast.success("تم الحذف!");
+            toast.success("تم حذف المستخدم بنجاح!");
             queryClient.invalidateQueries(['users']);
             triggerGlobalRefresh();
         }
@@ -74,22 +76,42 @@ const UsersManagementPage = () => {
         setShowModal(true);
     };
 
+    // دالة لتغيير الترتيب عند الضغط على رأس الجدول
+    const toggleSort = (field) => {
+        if (sortBy === field) {
+            setSortAsc(!sortAsc);
+        } else {
+            setSortBy(field);
+            setSortAsc(true);
+        }
+    };
+
     if (isLoading && !usersData) return <TableSkeleton columns={4} rows={5} />;
 
     return (
         <div className="users-page animate-fade-in text-end" dir="rtl">
-            <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-4 rounded-3 shadow-sm border">
+            <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-4 rounded-3 shadow-sm border flex-wrap gap-3">
                 <div><h3 className="fw-bold mb-1 text-primary"><People /> إدارة المستخدمين</h3></div>
                 <button className="btn btn-primary btn-sm px-4 fw-bold" onClick={() => handleShow(null)}><PersonPlus /> إضافة مستخدم</button>
             </div>
 
             {isError && <ErrorMessage message="فشل تحميل المستخدمين." />}
 
-            <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
+            <div className="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
                 <div className="table-responsive">
                     <table className="table table-hover align-middle mb-0">
                         <thead className="bg-light">
-                            <tr><th>المستخدم</th><th>الدور</th><th className="d-none d-md-table-cell">الاتصال</th><th className="text-center">الإجراءات</th></tr>
+                            <tr>
+                                {/* 🚀 رؤوس جداول قابلة للضغط للترتيب */}
+                                <th className="cursor-pointer user-select-none" onClick={() => toggleSort('userName')}>
+                                    المستخدم {sortBy === 'userName' && (sortAsc ? <SortAlphaDown className="text-primary ms-1" /> : <SortAlphaUp className="text-primary ms-1" />)}
+                                </th>
+                                <th>الدور</th>
+                                <th className="d-none d-md-table-cell cursor-pointer user-select-none" onClick={() => toggleSort('email')}>
+                                    الإيميل {sortBy === 'email' && (sortAsc ? <SortAlphaDown className="text-primary ms-1" /> : <SortAlphaUp className="text-primary ms-1" />)}
+                                </th>
+                                <th className="text-center">الإجراءات</th>
+                            </tr>
                         </thead>
                         <tbody>
                             {users.map(user => (
@@ -97,15 +119,22 @@ const UsersManagementPage = () => {
                                     <td className="ps-4">
                                         <div className="d-flex align-items-center gap-3">
                                             <div className="bg-primary bg-opacity-10 text-primary rounded-circle p-2"><PersonBadge size={20} /></div>
-                                            <div><div className="fw-bold">{user.userName}</div><small className="text-muted">ID: {user.id.substring(0,6)}</small></div>
+                                            <div><div className="fw-bold">{user.userName}</div><small className="text-muted">ID: {user.id?.substring(0,6)}</small></div>
                                         </div>
                                     </td>
                                     <td><Badge bg="success">{user.roles?.[0] || 'Admin'}</Badge></td>
-                                    <td className="d-none d-md-table-cell small text-muted">{user.email}</td>
+                                    <td className="d-none d-md-table-cell small text-muted" dir="ltr">{user.email}</td>
                                     <td className="text-center">
                                         <div className="d-flex justify-content-center gap-2">
                                             <button className="btn btn-sm btn-light text-primary" onClick={() => handleShow(user)}><PencilSquare /></button>
-                                            <button className="btn btn-sm btn-light text-danger" onClick={() => {if(window.confirm('حذف؟')) deleteMutation.mutate(user.id)}}><Trash /></button>
+                                            
+                                            {/* 🚀 استخدام Toast للحذف */}
+                                            <button 
+                                                className="btn btn-sm btn-light text-danger" 
+                                                onClick={() => confirmAction(`هل أنت متأكد من حذف المستخدم "${user.userName}"؟`, () => deleteMutation.mutate(user.id))}
+                                            >
+                                                <Trash />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -132,7 +161,6 @@ const UsersManagementPage = () => {
                         {!isEditing && (
                             <Form.Group className="mb-3">
                                 <Form.Label>كلمة المرور</Form.Label>
-                                {/* 🚀 إضافة Regex للتحقق من وجود حرف خاص واحد على الأقل قبل الإرسال للسيرفر */}
                                 <Form.Control 
                                     type="password" 
                                     value={formData.password} 

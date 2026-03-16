@@ -6,8 +6,9 @@ import ErrorMessage from '../../components/common/ErrorMessage';
 import TableSkeleton from '../../components/common/TableSkeleton';
 import toast from 'react-hot-toast';
 
-// 🚀 استخدام هوكات الأقسام الموحدة
+// 🚀 الهوكات وأداة الـ Toast المخصصة
 import { useSections, useDeleteSection, useAssignChildSection, useRemoveChildSection } from '../../hooks/api/useSections';
+import { confirmAction } from '../../utils/alerts';
 
 const SectionsManagementPage = () => {
   const navigate = useNavigate();
@@ -16,13 +17,11 @@ const SectionsManagementPage = () => {
   const [draggedSection, setDraggedSection] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
 
-  // 🚀 جلب البيانات
   const { data: sectionsData, isLoading, isError } = useSections();
 
-  // 🚀 العمليات (Mutations)
   const deleteMutation = useDeleteSection();
-  const assignMutation = useAssignChildSection(); // تأكد من إنشاء هذا الهوك في useSections.js
-  const removeMutation = useRemoveChildSection(); // تأكد من إنشاء هذا الهوك في useSections.js
+  const assignMutation = useAssignChildSection(); 
+  const removeMutation = useRemoveChildSection(); 
 
   const sections = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.items || sectionsData?.data || []);
 
@@ -77,9 +76,11 @@ const SectionsManagementPage = () => {
                   onDrop={(e) => {
                       e.preventDefault(); setDragOverId(null);
                       if (!draggedSection || draggedSection.id === section.id) return;
-                      if (window.confirm(`نقل "${draggedSection.title}" إلى "${section.title}"؟`)) {
-                        assignMutation.mutate({ parentId: section.id, childId: draggedSection.id });
-                      }
+                      
+                      // 🚀 استخدام Toast بدلاً من window.confirm للسحب والإفلات
+                      confirmAction(`هل تريد نقل قسم "${draggedSection.title}" ليكون تحت "${section.title}"؟`, () => {
+                          assignMutation.mutate({ parentId: section.id, childId: draggedSection.id });
+                      });
                   }}
                   className={dragOverId === section.id ? 'table-active border-primary' : ''}
                 >
@@ -94,12 +95,14 @@ const SectionsManagementPage = () => {
                   <td className="text-center px-4">
                     <div className="d-flex justify-content-center gap-2">
                       {section.parentId && (
-                        <button className="btn btn-sm btn-light text-warning" onClick={() => removeMutation.mutate({ parentId: section.parentId, childId: section.id })} disabled={isProcessing}>
+                        <button className="btn btn-sm btn-light text-warning" onClick={() => confirmAction(`فك ارتباط القسم "${section.title}"؟`, () => removeMutation.mutate({ parentId: section.parentId, childId: section.id }))} disabled={isProcessing}>
                             {removeMutation.isPending && removeMutation.variables?.childId === section.id ? <span className="spinner-border spinner-border-sm" /> : <ArrowUpCircle />}
                         </button>
                       )}
                       <button className="btn btn-sm btn-light text-primary" onClick={() => navigate(`/admin/sections/edit/${section.id}`)}><PencilSquare /></button>
-                      <button className="btn btn-sm btn-light text-danger" onClick={() => { if(window.confirm('حذف؟')) deleteMutation.mutate(section.id) }} disabled={isProcessing}>
+                      
+                      {/* 🚀 استخدام Toast بدلاً من window.confirm للحذف */}
+                      <button className="btn btn-sm btn-light text-danger" onClick={() => confirmAction(`هل أنت متأكد من حذف القسم "${section.title}"؟`, () => deleteMutation.mutate(section.id))} disabled={isProcessing}>
                         {deleteMutation.isPending && deleteMutation.variables === section.id ? <span className="spinner-border spinner-border-sm" /> : <Trash />}
                       </button>
                     </div>

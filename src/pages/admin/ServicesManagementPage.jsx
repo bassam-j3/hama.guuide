@@ -7,9 +7,10 @@ import toast from 'react-hot-toast';
 import { useDebounce } from '../../hooks/useDebounce';
 import TableSkeleton from '../../components/common/TableSkeleton'; 
 
-// 🚀 استيراد الهوكات المخصصة بدلاً من useQuery المباشر
+// 🚀 الهوكات وأداة الـ Toast المخصصة
 import { useServices, useDeleteService } from '../../hooks/api/useServices';
 import { useSections } from '../../hooks/api/useSections';
+import { confirmAction } from '../../utils/alerts';
 
 const ServicesManagementPage = () => {
     const navigate = useNavigate();
@@ -19,10 +20,9 @@ const ServicesManagementPage = () => {
     const debouncedSearchTerm = useDebounce(searchTerm, 300); 
     const [filterSection, setFilterSection] = useState('');
 
-    // 🚀 استخدام الهوكات الذكية
     const { data: rawServices, isLoading: loadingServices, isError: errorServices } = useServices();
     const { data: rawSections } = useSections();
-    const deleteMutation = useDeleteService(); // يحتوي داخله على logic التحديث و الـ Toast
+    const deleteMutation = useDeleteService();
 
     const services = rawServices?.data || rawServices?.items || rawServices || [];
     const sections = rawSections?.data || rawSections?.items || rawSections || [];
@@ -32,9 +32,8 @@ const ServicesManagementPage = () => {
     }, [sections]);
 
     const handleDelete = (id, title) => {
-        if (window.confirm(`تأكيد حذف خدمة "${title}"؟`)) {
-            deleteMutation.mutate(id);
-        }
+        // 🚀 استخدام Toast الأنيق بدلاً من window.confirm
+        confirmAction(`هل أنت متأكد من حذف خدمة "${title}"؟`, () => deleteMutation.mutate(id));
     };
 
     const filteredServices = services.filter(service => {

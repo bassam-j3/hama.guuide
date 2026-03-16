@@ -6,7 +6,6 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import toast from 'react-hot-toast'; 
 
-// 🚀 استيراد الهوكات المخصصة
 import { useServices } from '../../hooks/api/useServices';
 import { useAllSchemas, useSaveSchema } from '../../hooks/api/useSchemas';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,7 +28,6 @@ const SchemaManager = () => {
     const [selectedService, setSelectedService] = useState(null);
     const [fields, setFields] = useState([]);
 
-    // 🚀 استخدام الهوكات: سطران فقط لجلب كل شيء!
     const { data: servicesData, isLoading: loadingServices, isError: errorServices } = useServices();
     const { data: schemasData, isLoading: loadingSchemas, isError: errorSchemas } = useAllSchemas();
     const saveMutation = useSaveSchema();
@@ -44,7 +42,6 @@ const SchemaManager = () => {
         setSelectedService(service); 
         setFields([]); 
         try {
-            // 🚀 استخدام fetchQuery لضمان جلب المخطط بذكاء (مع الاستفادة من الكاش)
             const res = await queryClient.fetchQuery({
                 queryKey: ['schema', service.id],
                 queryFn: () => schemaService.getSchemaByService(service.id)
@@ -78,7 +75,6 @@ const SchemaManager = () => {
             allowedTypes: null 
         }));
 
-        // 🚀 استدعاء الـ Mutation بصمت (سيتولى رسائل النجاح والخطأ والتحديث تلقائياً)
         saveMutation.mutate(
             { serviceId: selectedService.id, fields: payloadFields },
             {
