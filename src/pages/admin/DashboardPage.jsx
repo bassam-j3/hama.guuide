@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Grid, Gear, FileText, PlusCircle, Activity, People } from 'react-bootstrap-icons';
-import { useQuery } from '@tanstack/react-query'; // 🚀 استيراد React Query
+import { useQuery } from '@tanstack/react-query'; 
 import { fetchAllSections } from '../../api/services/sectionService'; 
 import { fetchAllServices } from '../../api/services/serviceService'; 
 import { fetchAllAll } from '../../api/services/postService'; 
@@ -18,23 +18,31 @@ const DashboardPage = () => {
   const { data: stats, isLoading, isError } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
+        // تشغيل جميع الطلبات بالتوازي للحصول على أقصى سرعة
         const [sections, services, posts] = await Promise.all([
             fetchAllSections().catch(() => []),       
             fetchAllServices().catch(() => []),    
             fetchAllAll().catch(() => []) 
         ]);
         
+        // 🚀 إرجاع الكائن الذي يحتوي على الأرقام
         return {
             totalSections: Array.isArray(sections) ? sections.length : (sections?.items?.length || 0),
             totalServices: Array.isArray(services) ? services.length : (services?.items?.length || 0),
             totalPosts: Array.isArray(posts) ? posts.length : (posts?.items?.length || 0),
         };
     },
-    staleTime: 2 * 60 * 1000 // تحديث الإحصائيات كل دقيقتين فقط لتخفيف الحمل
+    staleTime: 2 * 60 * 1000 // تحديث الإحصائيات كل دقيقتين لتخفيف الحمل على السيرفر
   });
 
   if (isLoading) return <LoadingSpinner message="جاري تحليل بيانات النظام..." />;
-  if (isError) return <div className="p-5 text-center text-danger fw-bold">فشل في تحميل الإحصائيات.</div>;
+  
+  if (isError) return (
+      <div className="p-5 text-center text-danger fw-bold d-flex flex-column align-items-center justify-content-center vh-100">
+          <Activity size={40} className="mb-3 opacity-50" />
+          فشل في تحميل الإحصائيات. يرجى تحديث الصفحة.
+      </div>
+  );
 
   return (
     <div className="dashboard-wrapper animate-fade-in text-end" dir="rtl">
@@ -53,8 +61,13 @@ const DashboardPage = () => {
       </div>
 
       <div className="row g-3 g-md-4">
-        <StatCard title="الأقسام" count={stats.totalSections} icon={<Grid size={24} />} color="#198754" onClick={() => navigate('/admin/sections')} />
-        <StatCard title="الخدمات" count={stats.totalServices} icon={<Gear size={24} />} color="#0d6efd" onClick={() => navigate('/admin/services')} />
+        {/* 🚀 إخفاء عدد الأقسام والخدمات عن المحرر العادي */}
+        {isSuperAdmin && (
+            <>
+                <StatCard title="الأقسام" count={stats.totalSections} icon={<Grid size={24} />} color="#198754" onClick={() => navigate('/admin/sections')} />
+                <StatCard title="الخدمات" count={stats.totalServices} icon={<Gear size={24} />} color="#0d6efd" onClick={() => navigate('/admin/services')} />
+            </>
+        )}
         <StatCard title="المنشورات" count={stats.totalPosts} icon={<FileText size={24} />} color="#dc3545" onClick={() => navigate('/admin/posts')} />
       </div>
 
@@ -90,12 +103,12 @@ const DashboardPage = () => {
 
 const StatCard = ({ title, count, icon, color, onClick }) => (
   <div className="col-12 col-sm-6 col-md-4">
-    <div className="card border-0 shadow-sm rounded-4 h-100 cursor-pointer stat-card-hover" onClick={onClick}>
+    <div className="card border-0 shadow-sm rounded-4 h-100 cursor-pointer stat-card-hover" onClick={onClick} style={{ transition: 'transform 0.2s ease-in-out' }}>
       <div className="card-body p-3 p-md-4 text-center">
         <div className="mx-auto p-3 rounded-3 mb-3" style={{ backgroundColor: `${color}10`, color: color, width: 'fit-content' }}>
           {icon}
         </div>
-        <h2 className="fw-bold mb-1" style={{ fontSize: '2.5rem' }}>{count}</h2>
+        <h2 className="fw-bold mb-1 text-dark" style={{ fontSize: '2.5rem' }}>{count}</h2>
         <span className="text-muted fw-bold">{title}</span>
       </div>
     </div>
