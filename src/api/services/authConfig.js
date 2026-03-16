@@ -64,7 +64,17 @@ export const authService = {
   // 🚀 تأكيد البريد الإلكتروني (إن احتجتها مستقبلاً) (Swagger: POST /api/auth/email/confirm)
   confirmEmailPost: async (email) => {
     return await axiosInstance.post(`${AUTH_BASE}/email/confirm`, null, { params: { email } });
-  }
+  },
+  // إرسال كلمة المرور الجديدة مع الكود
+  resetPassword: async (email, resetCode, newPassword) => {
+    // بناءً على الـ Swagger، الباك-إند يستقبلهم كـ Query Parameters
+    const response = await axiosInstance.post(
+        `/auth/password-reset?Email=${encodeURIComponent(email)}&ResetCode=${encodeURIComponent(resetCode)}&NewPassword=${encodeURIComponent(newPassword)}`
+    );
+    return response.data;
+},
+
+  
 };
 
 

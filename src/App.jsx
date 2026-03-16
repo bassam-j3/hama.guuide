@@ -5,6 +5,7 @@ import 'bootstrap/dist/css/bootstrap.rtl.min.css';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import LoginPage from './components/auth/LoginPage';
 import DashboardLayout from './layouts/DashboardLayout';
+import ResetPasswordPage from './components/auth/ResetPasswordPage';
 
 // الصفحات (Lazy Loading)
 const DashboardPage = lazy(() => import('./pages/admin/DashboardPage'));
@@ -29,6 +30,7 @@ function App() {
 
         {/* المسارات العامة */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* المسارات المحمية (تخطيط لوحة التحكم) */}
         <Route path="/admin" element={<DashboardLayout />}>
