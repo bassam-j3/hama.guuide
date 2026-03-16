@@ -21,26 +21,38 @@ const UsersManagementPage = () => {
     const initialFormState = { userName: '', email: '', phoneNumber: '', password: '', roles: ['Admin'] };
     const [formData, setFormData] = useState(initialFormState);
 
-    // 🚀 جلب المستخدمين باستخدام React Query ودعم الترقيم
     const { data: usersData, isLoading, isError } = useQuery({
         queryKey: ['users', currentPage],
         queryFn: () => userService.getAllUsers(currentPage, PAGE_SIZE),
-        placeholderData: (previousData) => previousData, // ميزة Senior: بقاء البيانات القديمة أثناء تحميل الجديدة
+        placeholderData: (previousData) => previousData, 
     });
 
     const users = usersData?.items || usersData?.data || usersData || [];
     const totalPages = usersData?.totalPages || 1;
 
-    // 🚀 Mutation للإضافة والتعديل
+    // 🚀 تحديث معالج الأخطاء لقراءة سبب الرفض من الباك-إند
     const userMutation = useMutation({
         mutationFn: (data) => isEditing ? userService.updateUser(currentUser.id, data) : userService.createUser(data),
         onSuccess: () => {
-            toast.success("تم حفظ البيانات!");
+            toast.success("تم حفظ البيانات بنجاح!");
             queryClient.invalidateQueries(['users']);
             triggerGlobalRefresh();
             setShowModal(false);
         },
-        onError: () => toast.error("فشل الحفظ!")
+        onError: (error) => {
+            // 💡 محاولة قراءة الخطأ القادم من الباك-إند (ProblemDetails)
+            let errorMessage = "فشل الحفظ! تأكد من صحة البيانات.";
+            
+            if (error.response?.data?.Errors && error.response.data.Errors.length > 0) {
+                // إذا كان الخطأ من نوع مصفوفة أخطاء (مثل خطأ كلمة المرور)
+                errorMessage = error.response.data.Errors[0].description;
+            } else if (error.response?.data?.detail) {
+                // إذا كان الخطأ نصاً مباشراً
+                errorMessage = error.response.data.detail;
+            }
+
+            toast.error(errorMessage); // عرض السبب الفعلي للمستخدم
+        }
     });
 
     const deleteMutation = useMutation({
@@ -107,11 +119,33 @@ const UsersManagementPage = () => {
 
             <Modal show={showModal} onHide={() => setShowModal(false)} centered dir="rtl">
                 <Form onSubmit={(e) => { e.preventDefault(); userMutation.mutate(formData); }}>
-                    <Modal.Header><Modal.Title>{isEditing ? "تعديل" : "إضافة"}</Modal.Title></Modal.Header>
+                    <Modal.Header><Modal.Title>{isEditing ? "تعديل مستخدم" : "إضافة مستخدم"}</Modal.Title></Modal.Header>
                     <Modal.Body>
-                        <Form.Group className="mb-3"><Form.Label>الاسم</Form.Label><Form.Control value={formData.userName} onChange={e => setFormData({...formData, userName: e.target.value})} required /></Form.Group>
-                        <Form.Group className="mb-3"><Form.Label>الإيميل</Form.Label><Form.Control type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required /></Form.Group>
-                        {!isEditing && <Form.Group className="mb-3"><Form.Label>كلمة المرور</Form.Label><Form.Control type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required /></Form.Group>}
+                        <Form.Group className="mb-3">
+                            <Form.Label>الاسم</Form.Label>
+                            <Form.Control value={formData.userName} onChange={e => setFormData({...formData, userName: e.target.value})} required />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>الإيميل</Form.Label>
+                            <Form.Control type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+                        </Form.Group>
+                        {!isEditing && (
+                            <Form.Group className="mb-3">
+                                <Form.Label>كلمة المرور</Form.Label>
+                                {/* 🚀 إضافة Regex للتحقق من وجود حرف خاص واحد على الأقل قبل الإرسال للسيرفر */}
+                                <Form.Control 
+                                    type="password" 
+                                    value={formData.password} 
+                                    onChange={e => setFormData({...formData, password: e.target.value})} 
+                                    required 
+                                    pattern=".*[^a-zA-Z0-9].*" 
+                                    title="يجب أن تحتوي كلمة المرور على حرف خاص واحد على الأقل (مثل @, #, $, !)"
+                                />
+                                <Form.Text className="text-muted small">
+                                    يجب أن تحتوي على حروف، أرقام، وحرف خاص واحد على الأقل.
+                                </Form.Text>
+                            </Form.Group>
+                        )}
                     </Modal.Body>
                     <Modal.Footer>
                         <Button variant="light" onClick={() => setShowModal(false)}>إلغاء</Button>
