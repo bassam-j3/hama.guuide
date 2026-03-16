@@ -134,13 +134,14 @@ const PostCreatePage = () => {
             }
         });
 
-        const body = {
-            title: coreData.title,
-            imageUrl: coreData.imageUrl,
-            latitude: parseFloat(coreData.latitude),
-            longitude: parseFloat(coreData.longitude),
-            payload: cleanedPayload
-        };
+// هكذا كانت تعمل بنجاح في كودك المرفوع:
+const body = {
+    title: postData.title, 
+    imageUrl: postData.imageUrl || null, 
+    payload: postData.payload, // 👈 كائن (Object) مباشر
+    latitude: parseFloat(postData.latitude) || 0, 
+    longitude: parseFloat(postData.longitude) || 0
+};
 
         // 🚀 تشغيل الـ Mutation
         createMutation.mutate(body);

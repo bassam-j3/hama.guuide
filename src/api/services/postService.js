@@ -1,52 +1,73 @@
 import axiosInstance, { graphqlInstance } from '../axiosConfig';
 
+// 🚀 تم تحديث الاستعلام ليتوافق مع التعديلات الأخيرة للباك-إند (Location و إزالة isDeleted)
 export const fetchPostsByServiceSlug = async (serviceSlug) => {
   const query = `
-    query GetPostsBySlug($slug: String!) {
-      postsForSlug(slug: $slug) {
+    query GetServicePosts($serviceSlug: String!) {
+      posts(where: { service: { slug: { eq: $serviceSlug } } }) {
         nodes {
-          id title payload imageUrl ratingAvg ratingCount createdAt
-          location { latitude longitude }
+          id
+          title
+          imageUrl
+          createdAt
+          payload
+          ratingAvg
+          ratingCount
+          location {
+            latitude
+            longitude
+          }
         }
       }
     }
   `;
   try {
-    const response = await graphqlInstance.post('', { query, variables: { slug: serviceSlug } });
+    const response = await graphqlInstance.post('', { 
+        query, 
+        variables: { serviceSlug: serviceSlug } 
+    });
+    
     if (response.data.errors) return [];
-    const nodes = response.data?.data?.postsForSlug?.nodes || [];
+    const nodes = response.data?.data?.posts?.nodes || [];
+    
     return nodes.map(post => ({
-      ...post, payload: typeof post.payload === 'string' ? JSON.parse(post.payload) : (post.payload || {})
+      ...post, 
+      payload: typeof post.payload === 'string' ? JSON.parse(post.payload) : (post.payload || {})
     }));
-  } catch (error) { return []; }
+  } catch (error) { 
+    return []; 
+  }
 };
 
 export const getPostById = async (serviceSlug, postId) => {
     const post = await axiosInstance.get(`/${serviceSlug}/${postId}`);
     let latitude = 0, longitude = 0;
-    if (post.location) { latitude = post.location.latitude || post.location.y || 0; longitude = post.location.longitude || post.location.x || 0; }
+    if (post.location) { 
+        latitude = post.location.latitude || post.location.y || 0; 
+        longitude = post.location.longitude || post.location.x || 0; 
+    }
     let parsedPayload = post.payload;
-    if (typeof parsedPayload === 'string') { try { parsedPayload = JSON.parse(parsedPayload); } catch { parsedPayload = {}; } }
+    if (typeof parsedPayload === 'string') { 
+        try { parsedPayload = JSON.parse(parsedPayload); } catch { parsedPayload = {}; } 
+    }
     return { ...post, latitude: parseFloat(latitude) || 0, longitude: parseFloat(longitude) || 0, payload: parsedPayload };
 };
 
-// 🚀 إنشاء بوست (متطابق مع Swagger: CreatePostRequest)
 export const createPostREST = async (serviceSlug, postData) => {
   return await axiosInstance.post(`/${serviceSlug}`, {
     title: postData.title, 
     imageUrl: postData.imageUrl || null, 
-    payload: postData.payload, 
+    payload: postData.payload, // 👈 إرسالها كـ Object كما كان يعمل في الكود القديم
     latitude: parseFloat(postData.latitude) || 0, 
     longitude: parseFloat(postData.longitude) || 0
   });
 };
 
-// 🚀 تعديل بوست (تم إضافة imageUrl ليتطابق مع Swagger: UpdatePostRequest)
 export const updatePostREST = async (serviceSlug, postId, postData) => {
   return await axiosInstance.put(`/${serviceSlug}/${postId}`, {
     title: postData.title, 
     payload: postData.payload,
-    imageUrl: postData.imageUrl || null, // 🔥 تم إصلاح هذه الثغرة لكي لا تختفي الصورة عند التعديل
+    imageUrl: postData.imageUrl || null, 
     latitude: parseFloat(postData.latitude) || 0, 
     longitude: parseFloat(postData.longitude) || 0
   });
@@ -64,18 +85,12 @@ export const fetchAllAll = async () => {
   } catch (error) { return []; }
 };
 
-// ==========================================
-// 🚀 مسارات التقييم (Swagger)
-// ==========================================
-
-// 1. إضافة تقييم جديد (Swagger: POST /api/posts/{postId}/rating)
 export const addPostRating = async (postId, ratingValue) => {
     return await axiosInstance.post(`/posts/${postId}/rating`, {
         value: parseInt(ratingValue, 10)
     });
 };
 
-// 2. حذف التقييم (Swagger: DELETE /api/posts/{postId}/rating)
 export const deletePostRating = async (postId) => {
     return await axiosInstance.delete(`/posts/${postId}/rating`);
 };
