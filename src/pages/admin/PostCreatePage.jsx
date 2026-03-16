@@ -134,17 +134,17 @@ const PostCreatePage = () => {
             }
         });
 
-// هكذا كانت تعمل بنجاح في كودك المرفوع:
-const body = {
-    title: postData.title, 
-    imageUrl: postData.imageUrl || null, 
-    payload: postData.payload, // 👈 كائن (Object) مباشر
-    latitude: parseFloat(postData.latitude) || 0, 
-    longitude: parseFloat(postData.longitude) || 0
-};
+        // 🚀 هذا هو الـ Object الذي سيتم إرساله للـ Mutation
+        const finalBody = {
+            title: coreData.title,
+            imageUrl: coreData.imageUrl,
+            latitude: parseFloat(coreData.latitude) || 0,
+            longitude: parseFloat(coreData.longitude) || 0,
+            payload: cleanedPayload
+        };
 
-        // 🚀 تشغيل الـ Mutation
-        createMutation.mutate(body);
+        // 🚀 تمرير finalBody بشكل صحيح للدالة
+        createMutation.mutate(finalBody);
     };
 
     if (loading) return <LoadingSpinner message="جاري التحميل..." />;

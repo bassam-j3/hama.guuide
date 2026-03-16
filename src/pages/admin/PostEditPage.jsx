@@ -134,15 +134,16 @@ const PostEditPage = () => {
             }
         });
 
-        const body = {
+        // 🚀 هذا هو الـ Object الذي سيتم إرساله للـ Mutation
+        const finalBody = {
             title: coreData.title,
             payload: payloadToSend,
-            latitude: parseFloat(coreData.latitude),
-            longitude: parseFloat(coreData.longitude),
+            latitude: parseFloat(coreData.latitude) || 0,
+            longitude: parseFloat(coreData.longitude) || 0,
         };
 
-        // 🚀 تشغيل الـ Mutation
-        updateMutation.mutate(body);
+        // 🚀 تمرير finalBody بشكل صحيح
+        updateMutation.mutate(finalBody);
     };
 
     if (loading) return <LoadingSpinner message="جاري التحميل..." />;
