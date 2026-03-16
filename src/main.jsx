@@ -2,23 +2,45 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
-// 🚀 1. استيراد أدوات React Query
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-// 🚀 2. إنشاء نسخة من الـ QueryClient مع بعض الإعدادات الاحترافية
+// 🚀 1. استيراد Sentry
+import * as Sentry from "@sentry/react";
+
+// 🚀 2. تهيئة Sentry (نظام المراقبة المتقدم)
+Sentry.init({
+  dsn: "https://d6aee3b1f7ec03eb67d8644b226f56d1@o4511054366310400.ingest.us.sentry.io/4511054375878656", 
+  
+  // 🚀 تفعيل جمع بيانات المستخدم (مثل الـ IP) بناءً على توصية Sentry
+  sendDefaultPii: true,
+  
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration({
+      maskAllText: false, // لكي تتمكن من قراءة النصوص في فيديو الخطأ
+      blockAllMedia: false, // لكي تتمكن من رؤية الصور في فيديو الخطأ
+    }),
+  ],
+  // تتبع أداء الصفحات
+  tracesSampleRate: 1.0, 
+  
+  // تصوير الشاشة بالفيديو (Replays)
+  replaysSessionSampleRate: 0.1, 
+  replaysOnErrorSampleRate: 1.0, // تصوير 100% من الأخطاء التي تحدث!
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false, // لا تقم بإعادة الجلب كلما عاد المستخدم لنافذة المتصفح
-      retry: 1, // إذا فشل الاتصال، جرب مرة واحدة إضافية قبل إعلان الخطأ
-      staleTime: 5 * 60 * 1000, // اعتبر البيانات "طازجة" لمدة 5 دقائق (لا تجلبها من السيرفر مجدداً خلال هذه المدة)
+      refetchOnWindowFocus: false, 
+      retry: 1, 
+      staleTime: 5 * 60 * 1000, 
     },
   },
 })
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {/* 🚀 3. تغليف التطبيق بالـ Provider */}
     <QueryClientProvider client={queryClient}>
       <App />
     </QueryClientProvider>

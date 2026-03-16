@@ -1,18 +1,22 @@
 import axios from 'axios';
 
-// 🚀 تحديد الرابط الأساسي للباك-إند
-const API_BASE_URL = 'http://hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/api';
+// 🚀 قراءة الرابط من ملف .env ديناميكياً
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; 
 
 // ==========================================
-// 🌟 دالة مساعدة لمعالجة روابط الصور (التي كانت مفقودة)
+// 🌟 دالة مساعدة لمعالجة روابط الصور
 // ==========================================
 export const getImageUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const DOMAIN = 'http://hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com';
+    
+    // 🚀 استخراج الدومين من الرابط الأساسي برمجياً
+    const DOMAIN = API_BASE_URL.replace('/api', '');
     return url.startsWith('/') ? `${DOMAIN}${url}` : `${DOMAIN}/${url}`;
 };
+
+// ... (باقي الكود كما هو تماماً بدون أي تغيير) ...
 
 // إنشاء نسخة Axios لطلبات الـ REST
 const axiosInstance = axios.create({

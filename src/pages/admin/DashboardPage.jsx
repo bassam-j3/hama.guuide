@@ -84,6 +84,8 @@ const DashboardPage = () => {
                   <button onClick={() => navigate('/admin/services/create')} className="btn btn-outline-primary border-2 px-4 py-2 py-md-3 rounded-3">
                     <Gear className="ms-2" /> إضافة خدمة جديدة
                   </button>
+                  // يمكنك وضع هذا الزر مؤقتاً في أي مكان
+
                 </div>
               </div>
             </div>
