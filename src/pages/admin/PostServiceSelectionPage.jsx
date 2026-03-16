@@ -1,41 +1,30 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Collection, PlusLg } from "react-bootstrap-icons";
-import { fetchAllServices } from "../../api/services/serviceService"; 
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { useServices } from "../../hooks/api/useServices"; // 🚀 استيراد الهوك المخصص
 
 const PostServiceSelectionPage = () => {
     const navigate = useNavigate();
-    const [services, setServices] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        const loadServices = async () => {
-            try {
-                const data = await fetchAllServices(); 
-                setServices(Array.isArray(data) ? data : []);
-            } catch (err) {
-                setError("فشل في تحميل قائمة الخدمات. يرجى التحقق من الاتصال.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadServices();
-    }, []);
+    
+    // 🚀 استخدام الهوك بدلاً من useEffect
+    const { data: servicesData, isLoading, isError } = useServices();
+    
+    // استخراج مصفوفة الخدمات بأمان
+    const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
 
     const filteredServices = useMemo(() => {
-        return services.filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
+        if (!services) return [];
+        return services.filter(s => s.title?.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [services, searchTerm]);
 
-    if (loading) return <LoadingSpinner message="جاري تحميل الخدمات..." />;
+    if (isLoading) return <LoadingSpinner message="جاري تحميل الخدمات..." />;
 
-    if (error) return <div className="container py-5 text-center"><div className="alert alert-danger d-inline-block px-5">{error}</div></div>;
+    if (isError) return <div className="container py-5 text-center"><div className="alert alert-danger d-inline-block px-5">فشل في تحميل قائمة الخدمات. يرجى التحقق من الاتصال.</div></div>;
 
     return (
         <div className="container-fluid py-4 py-md-5 animate-fade-in text-end" dir="rtl">
-            {/* 🚀 متجاوب: flex-wrap */}
             <div className="d-flex justify-content-between align-items-center mb-4 mb-md-5 flex-wrap gap-3">
                 <div>
                     <h2 className="fw-bold mb-1 text-dark fs-3">إدارة المحتوى</h2>

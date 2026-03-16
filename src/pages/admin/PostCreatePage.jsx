@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { ArrowRight, Save, InfoCircle, Image as ImageIcon, GeoAltFill, Type } from 'react-bootstrap-icons';
 import { fetchAllServices } from '../../api/services/serviceService';
 import { uploadFile } from '../../api/services/fileService';
@@ -11,17 +11,20 @@ import LocationPicker from '../../components/common/LocationPicker';
 import DynamicFieldRenderer from '../../components/posts/DynamicFieldRenderer';
 import toast from 'react-hot-toast'; 
 
+// 🚀 استيراد أدوات React Query
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 const PostCreatePage = () => {
     const { serviceSlug } = useParams();
     const navigate = useNavigate();
-    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج الدالة
+    const { triggerGlobalRefresh } = useOutletContext(); 
+    const queryClient = useQueryClient(); // للتحكم في الكاش
 
     const [coreData, setCoreData] = useState({ title: '', imageUrl: '', latitude: null, longitude: null, addressDisplay: '' });
     const [payloadData, setPayloadData] = useState({});
     const [serviceInfo, setServiceInfo] = useState(null);
     const [schema, setSchema] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false); 
     const [uploadingField, setUploadingField] = useState(null);
     const [loadError, setLoadError] = useState(null);
@@ -100,6 +103,21 @@ const PostCreatePage = () => {
         }
     };
 
+    // 🚀 نقل منطق الإرسال لـ React Query Mutation
+    const createMutation = useMutation({
+        mutationFn: (body) => createPostREST(serviceSlug, body),
+        onSuccess: () => {
+            toast.success('تم النشر بنجاح!');
+            queryClient.invalidateQueries(['posts', serviceSlug]); // تحديث قائمة البوستات فوراً
+            triggerGlobalRefresh(); 
+            setTimeout(() => navigate(`/admin/posts/${serviceSlug}`), 1500);
+        },
+        onError: (err) => {
+            const errorMsg = err.response?.data?.Errors?.[0]?.description || "فشل الحفظ.";
+            toast.error(errorMsg);
+        }
+    });
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -107,39 +125,25 @@ const PostCreatePage = () => {
         if (!coreData.imageUrl) return toast.error('الصورة الأساسية مطلوبة!');
         if (coreData.latitude === null || coreData.longitude === null) return toast.error('يرجى تحديد الموقع على الخريطة!');
 
-        setSubmitting(true);
-        const toastId = toast.loading('جاري نشر البوست...'); 
-        try {
-            const cleanedPayload = { ...payloadData };
-            schema.forEach((field) => {
-                const val = cleanedPayload[field.fieldName];
-                if (field.fieldType === 'Int') cleanedPayload[field.fieldName] = parseInt(val) || 0;
-                if (field.fieldType === 'Float' || field.fieldType === 'Decimal' || field.fieldType === 'Long') {
-                    cleanedPayload[field.fieldName] = parseFloat(val) || 0;
-                }
-            });
+        const cleanedPayload = { ...payloadData };
+        schema.forEach((field) => {
+            const val = cleanedPayload[field.fieldName];
+            if (field.fieldType === 'Int') cleanedPayload[field.fieldName] = parseInt(val) || 0;
+            if (field.fieldType === 'Float' || field.fieldType === 'Decimal' || field.fieldType === 'Long') {
+                cleanedPayload[field.fieldName] = parseFloat(val) || 0;
+            }
+        });
 
-            const body = {
-                title: coreData.title,
-                imageUrl: coreData.imageUrl,
-                latitude: parseFloat(coreData.latitude),
-                longitude: parseFloat(coreData.longitude),
-                payload: cleanedPayload
-            };
+        const body = {
+            title: coreData.title,
+            imageUrl: coreData.imageUrl,
+            latitude: parseFloat(coreData.latitude),
+            longitude: parseFloat(coreData.longitude),
+            payload: cleanedPayload
+        };
 
-            await createPostREST(serviceSlug, body);
-            toast.success('تم النشر بنجاح!', { id: toastId }); 
-            
-            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد النجاح
-            
-            setTimeout(() => navigate(`/admin/posts/${serviceSlug}`), 1500);
-
-        } catch (err) {
-            const errorMsg = err.response?.data?.Errors?.[0]?.description || "فشل الحفظ.";
-            toast.error(errorMsg, { id: toastId }); 
-        } finally {
-            setSubmitting(false);
-        }
+        // 🚀 تشغيل الـ Mutation
+        createMutation.mutate(body);
     };
 
     if (loading) return <LoadingSpinner message="جاري التحميل..." />;
@@ -197,7 +201,7 @@ const PostCreatePage = () => {
                                     value={payloadData[field.fieldName]} 
                                     onChange={(key, val) => setPayloadData(p => ({ ...p, [key]: val }))}
                                     onFileUpload={handleDynamicFileUpload}
-                                    onAddressUpdate={(key, lat, lng, addr) => setPayloadData(p => ({ ...p, [key]: JSON.stringify([lat, lng]) }))}
+                                    onAddressUpdate={(key, lat, lng) => setPayloadData(p => ({ ...p, [key]: JSON.stringify([lat, lng]) }))}
                                     uploadingField={uploadingField}
                                 />
                             ))}
@@ -219,12 +223,12 @@ const PostCreatePage = () => {
                                     {uploading ? <LoadingSpinner size="sm" message="رفع..."/> : <><ImageIcon size={32} className="mb-2 opacity-50"/><p className="small mb-2">اختر صورة</p><span className="btn btn-outline-primary btn-sm px-4 pointer-events-none">تصفح</span></>}
                                 </div>
                             )}
-                            <input type="file" className="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" onChange={handleCoreImageUpload} accept="image/*" disabled={uploading} />
+                            <input type="file" className="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" onChange={handleCoreImageUpload} accept="image/*" disabled={uploading || createMutation.isPending} />
                         </div>
                     </div>
                     <div className="card border-0 shadow-sm p-3 p-md-4 rounded-3 bg-white">
-                        <button type="submit" className="btn btn-success w-100 py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" disabled={submitting || uploading}>
-                            {submitting ? <LoadingSpinner size="sm" /> : <Save />} {submitting ? "جاري النشر..." : "نشر البوست"}
+                        <button type="submit" className="btn btn-success w-100 py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" disabled={createMutation.isPending || uploading}>
+                            {createMutation.isPending ? <LoadingSpinner size="sm" /> : <Save />} {createMutation.isPending ? "جاري النشر..." : "نشر البوست"}
                         </button>
                     </div>
                 </div>
@@ -232,4 +236,5 @@ const PostCreatePage = () => {
         </div>
     );
 };
+
 export default PostCreatePage;

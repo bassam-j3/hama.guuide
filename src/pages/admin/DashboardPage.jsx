@@ -1,45 +1,40 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Grid, Gear, FileText, PlusCircle, Activity, People } from 'react-bootstrap-icons';
+import { useQuery } from '@tanstack/react-query'; // 🚀 استيراد React Query
 import { fetchAllSections } from '../../api/services/sectionService'; 
 import { fetchAllServices } from '../../api/services/serviceService'; 
-import { fetchAllAll } from '../../api/services/postService'; // 🚀 تم التصحيح هنا (Named Import)
+import { fetchAllAll } from '../../api/services/postService'; 
 import { authService } from '../../api/services/authConfig'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ totalSections: 0, totalServices: 0, totalPosts: 0 });
-  const [loading, setLoading] = useState(true);
-
-  // جلب المستخدم من المصدر الموحد (Single Source of Truth)
   const currentUser = authService.getCurrentUser();
   const username = currentUser?.username || 'مدير النظام';
   const isSuperAdmin = currentUser?.role === 'SuperAdmin' || currentUser?.roles?.includes('SuperAdmin');
 
-  const loadRealTimeStats = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [sections, services, posts] = await Promise.all([
-        fetchAllSections().catch(() => []),       
-        fetchAllServices().catch(() => []),    
-        fetchAllAll().catch(() => []) // 🚀 تم التصحيح هنا لاستخدام الدالة مباشرة
-      ]);
-      setStats({
-        totalSections: sections?.length || 0,
-        totalServices: services?.length || 0,
-        totalPosts: posts?.length || 0,
-      });
-    } catch (err) {
-      console.error('Dashboard Engine Error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // 🚀 جلب جميع الإحصائيات في وقت واحد (Parallel Querying)
+  const { data: stats, isLoading, isError } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+        const [sections, services, posts] = await Promise.all([
+            fetchAllSections().catch(() => []),       
+            fetchAllServices().catch(() => []),    
+            fetchAllAll().catch(() => []) 
+        ]);
+        
+        return {
+            totalSections: Array.isArray(sections) ? sections.length : (sections?.items?.length || 0),
+            totalServices: Array.isArray(services) ? services.length : (services?.items?.length || 0),
+            totalPosts: Array.isArray(posts) ? posts.length : (posts?.items?.length || 0),
+        };
+    },
+    staleTime: 2 * 60 * 1000 // تحديث الإحصائيات كل دقيقتين فقط لتخفيف الحمل
+  });
 
-  useEffect(() => { loadRealTimeStats(); }, [loadRealTimeStats]);
-
-  if (loading) return <LoadingSpinner message="جاري تحليل بيانات النظام..." />;
+  if (isLoading) return <LoadingSpinner message="جاري تحليل بيانات النظام..." />;
+  if (isError) return <div className="p-5 text-center text-danger fw-bold">فشل في تحميل الإحصائيات.</div>;
 
   return (
     <div className="dashboard-wrapper animate-fade-in text-end" dir="rtl">
@@ -63,7 +58,6 @@ const DashboardPage = () => {
         <StatCard title="المنشورات" count={stats.totalPosts} icon={<FileText size={24} />} color="#dc3545" onClick={() => navigate('/admin/posts')} />
       </div>
 
-      {/* إخفاء الأزرار والإعدادات الحساسة عن المدير العادي */}
       {isSuperAdmin && (
         <div className="row mt-4 mt-md-5 g-4">
           <div className="col-lg-8">

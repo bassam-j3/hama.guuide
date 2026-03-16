@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, useOutletContext } from "react-router-dom"; // 🚀 استيراد useOutletContext
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { Save, ArrowRight, InfoCircle, Image as ImageIcon, GeoAltFill, ExclamationTriangle } from "react-bootstrap-icons";
 
 import { fetchAllServices } from "../../api/services/serviceService";
@@ -12,17 +12,20 @@ import LocationPicker from '../../components/common/LocationPicker';
 import DynamicFieldRenderer from "../../components/posts/DynamicFieldRenderer";
 import toast from 'react-hot-toast'; 
 
+// 🚀 استيراد أدوات React Query
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 const PostEditPage = () => {
     const { serviceSlug, postId } = useParams(); 
     const navigate = useNavigate();
-    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج الدالة
+    const { triggerGlobalRefresh } = useOutletContext(); 
+    const queryClient = useQueryClient(); // للتحكم في الكاش
 
     const [coreData, setCoreData] = useState({ title: "", imageUrl: "", latitude: 0, longitude: 0, addressDisplay: "" });
     const [payloadData, setPayloadData] = useState({});
     const [serviceInfo, setServiceInfo] = useState(null);
     const [schema, setSchema] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
     const [uploadingField, setUploadingField] = useState(null);
     const [loadError, setLoadError] = useState(null);
 
@@ -100,45 +103,46 @@ const PostEditPage = () => {
         }
     };
 
+    // 🚀 نقل منطق التعديل لـ React Query Mutation
+    const updateMutation = useMutation({
+        mutationFn: (body) => updatePostREST(serviceSlug, postId, body),
+        onSuccess: () => {
+            toast.success('تم حفظ التعديلات بنجاح!');
+            queryClient.invalidateQueries(['posts', serviceSlug]); // تحديث البيانات القديمة بالكاش
+            triggerGlobalRefresh(); 
+            setTimeout(() => navigate(`/admin/posts/${serviceSlug}`), 1000);
+        },
+        onError: (err) => {
+            const errorMsg = err.response?.data?.Errors?.[0]?.description || "فشل التحديث.";
+            toast.error(errorMsg);
+        }
+    });
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         
         if (!coreData.title) return toast.error('العنوان مطلوب.');
 
-        setSubmitting(true);
-        const toastId = toast.loading('جاري حفظ التعديلات...'); 
-        try {
-            const payloadToSend = { ...payloadData };
-            schema.forEach((field) => {
-                const val = payloadToSend[field.fieldName];
-                if (val !== undefined && val !== "") {
-                    if (field.fieldType === 'Int') payloadToSend[field.fieldName] = parseInt(val, 10);
-                    else if (field.fieldType === 'Float' || field.fieldType === 'Decimal' || field.fieldType === 'Long') {
-                        payloadToSend[field.fieldName] = parseFloat(val);
-                    }
+        const payloadToSend = { ...payloadData };
+        schema.forEach((field) => {
+            const val = payloadToSend[field.fieldName];
+            if (val !== undefined && val !== "") {
+                if (field.fieldType === 'Int') payloadToSend[field.fieldName] = parseInt(val, 10);
+                else if (field.fieldType === 'Float' || field.fieldType === 'Decimal' || field.fieldType === 'Long') {
+                    payloadToSend[field.fieldName] = parseFloat(val);
                 }
-            });
+            }
+        });
 
-            const body = {
-                title: coreData.title,
-                payload: payloadToSend,
-                latitude: parseFloat(coreData.latitude),
-                longitude: parseFloat(coreData.longitude),
-            };
+        const body = {
+            title: coreData.title,
+            payload: payloadToSend,
+            latitude: parseFloat(coreData.latitude),
+            longitude: parseFloat(coreData.longitude),
+        };
 
-            await updatePostREST(serviceSlug, postId, body);
-            toast.success('تم حفظ التعديلات بنجاح!', { id: toastId }); 
-            
-            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد النجاح
-            
-            setTimeout(() => navigate(`/admin/posts/${serviceSlug}`), 1000);
-
-        } catch (err) {
-            const errorMsg = err.response?.data?.Errors?.[0]?.description || "فشل التحديث.";
-            toast.error(errorMsg, { id: toastId }); 
-        } finally {
-            setSubmitting(false);
-        }
+        // 🚀 تشغيل الـ Mutation
+        updateMutation.mutate(body);
     };
 
     if (loading) return <LoadingSpinner message="جاري التحميل..." />;
@@ -207,7 +211,7 @@ const PostEditPage = () => {
                                     value={payloadData[field.fieldName]} 
                                     onChange={(key, val) => setPayloadData(p => ({ ...p, [key]: val }))}
                                     onFileUpload={handleDynamicFileUpload}
-                                    onAddressUpdate={(key, lat, lng, addr) => setPayloadData(p => ({ ...p, [key]: JSON.stringify([lat, lng]) }))}
+                                    onAddressUpdate={(key, lat, lng) => setPayloadData(p => ({ ...p, [key]: JSON.stringify([lat, lng]) }))}
                                     uploadingField={uploadingField}
                                 />
                             ))}
@@ -231,8 +235,8 @@ const PostEditPage = () => {
                     </div>
 
                     <div className="card border-0 shadow-sm p-3 p-md-4 rounded-3 bg-white">
-                        <button type="submit" className="btn btn-primary w-100 py-3 fw-bold shadow" disabled={submitting}>
-                            {submitting ? "جاري الحفظ..." : "حفظ التعديلات"}
+                        <button type="submit" className="btn btn-primary w-100 py-3 fw-bold shadow" disabled={updateMutation.isPending}>
+                            {updateMutation.isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
                         </button>
                     </div>
                 </div>
