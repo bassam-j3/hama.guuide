@@ -2,7 +2,17 @@ import axios from 'axios';
 
 // 🚀 تحديد الرابط الأساسي للباك-إند
 const API_BASE_URL = 'http://hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/api';
-const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; // نفس المفتاح المطابق للـ authConfig
+const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; 
+
+// ==========================================
+// 🌟 دالة مساعدة لمعالجة روابط الصور (التي كانت مفقودة)
+// ==========================================
+export const getImageUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const DOMAIN = 'http://hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com';
+    return url.startsWith('/') ? `${DOMAIN}${url}` : `${DOMAIN}/${url}`;
+};
 
 // إنشاء نسخة Axios لطلبات الـ REST
 const axiosInstance = axios.create({
