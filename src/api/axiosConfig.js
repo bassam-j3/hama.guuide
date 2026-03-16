@@ -1,191 +1,128 @@
 import axios from 'axios';
-import toast from 'react-hot-toast';
 
-const isDev = import.meta.env.DEV;
-const AWS_SERVER_URL = "http://hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com";
-const API_BASE = isDev ? '/api' : `${AWS_SERVER_URL}/api`; 
-const GRAPHQL_BASE = isDev ? '/graphql' : `${AWS_SERVER_URL}/graphql`;
+// 🚀 تحديد الرابط الأساسي للباك-إند
+const API_BASE_URL = 'http://hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com/api';
+const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; // نفس المفتاح المطابق للـ authConfig
 
-const TIMEOUT_DURATION = 60000; 
-const STORAGE_KEY = "oidc.user:hama.guide:admin"; 
-
-// 🚀 1. إنشاء نُسخ Axios
+// إنشاء نسخة Axios لطلبات الـ REST
 const axiosInstance = axios.create({
-  baseURL: API_BASE, 
-  timeout: TIMEOUT_DURATION,
-  headers: {
-    'Accept': 'application/json',
-  },
+    baseURL: API_BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
+// إنشاء نسخة Axios لطلبات الـ GraphQL
 export const graphqlInstance = axios.create({
-  baseURL: GRAPHQL_BASE,
-  timeout: TIMEOUT_DURATION,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+    baseURL: `${API_BASE_URL}/graphql`, 
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
-// 🚀 2. قراءة التوكن بأمان
+// دالة مساعدة لقراءة كائن الـ Auth من الـ Session Storage
 const getAuthData = () => {
-  try {
-    const storedData = sessionStorage.getItem(STORAGE_KEY);
-    if (storedData) return JSON.parse(storedData);
-  } catch (error) {
-    console.error("Error reading auth data", error);
-  }
-  return null;
+    try {
+        const storedData = sessionStorage.getItem(STORAGE_KEY_PREFIX);
+        return storedData ? JSON.parse(storedData) : null;
+    } catch {
+        return null;
+    }
 };
 
-// 🚀 3. حقن التوكن في كل طلب (Request Interceptor)
+// ==========================================
+// 🌟 نظام اعتراض الطلبات (Request Interceptor)
+// ==========================================
 const requestInterceptor = (config) => {
-  const authData = getAuthData();
-  const token = authData?.access_token || authData?.token || null;
-  
-  if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-  }
-  
-  if (config.data instanceof FormData) {
-    delete config.headers['Content-Type'];
-  } else if (!config.headers['Content-Type']) {
-    config.headers['Content-Type'] = 'application/json';
-  }
-  return config;
+    const authData = getAuthData();
+    if (authData && authData.access_token) {
+        config.headers.Authorization = `Bearer ${authData.access_token}`;
+    }
+    return config;
 };
 
-axiosInstance.interceptors.request.use(requestInterceptor);
-graphqlInstance.interceptors.request.use(requestInterceptor);
+axiosInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
+graphqlInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
+
 
 // ==========================================
-// 🚀 نظام التجديد الصامت (Silent Token Refresh)
+// 🌟 نظام تجديد الجلسة التلقائي (Refresh Token Interceptor)
 // ==========================================
+
 let isRefreshing = false;
 let failedQueue = [];
 
-// دالة لتفريغ الطابور بعد نجاح أو فشل التجديد
 const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
-  });
-  failedQueue = [];
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
 };
 
-const responseInterceptor = async (error) => {
-  const originalRequest = error.config;
+const responseErrorInterceptor = async (error) => {
+    const originalRequest = error.config;
 
-  // أ. إذا كان الخطأ 401 (غير مصرح) ولم نحاول تجديد هذا الطلب من قبل
-  if (error.response?.status === 401 && !originalRequest._retry) {
-      
-      // إذا كان هناك طلب آخر يقوم بالتجديد الآن، ضع هذا الطلب في الطابور
-      if (isRefreshing) {
-          return new Promise(function(resolve, reject) {
-              failedQueue.push({ resolve, reject });
-          }).then(token => {
-              originalRequest.headers.Authorization = 'Bearer ' + token;
-              return axiosInstance(originalRequest); 
-          }).catch(err => {
-              return Promise.reject(err);
-          });
-      }
+    // إذا كان الخطأ 401 (انتهت الجلسة) ولم تتم المحاولة من قبل
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+        
+        if (isRefreshing) {
+            return new Promise(function(resolve, reject) {
+                failedQueue.push({ resolve, reject });
+            }).then(token => {
+                originalRequest.headers.Authorization = `Bearer ${token}`;
+                return axios(originalRequest);
+            }).catch(err => Promise.reject(err));
+        }
 
-      originalRequest._retry = true;
-      isRefreshing = true;
+        originalRequest._retry = true;
+        isRefreshing = true;
 
-      try {
-          const authData = getAuthData();
-          const refreshToken = authData?.refresh_token || authData?.refreshToken;
+        try {
+            const authData = getAuthData();
+            const refreshToken = authData?.refresh_token;
 
-          if (refreshToken) {
-              // ⚠️ نستخدم axios العادي وليس axiosInstance لتجنب الحلقات المفرغة
-              const refreshResponse = await axios.post(`${API_BASE}/auth/refresh`, null, {
-                  params: { refreshToken: refreshToken }
-              });
+            if (!refreshToken) throw new Error("لا يوجد Refresh Token");
 
-              // بناءً على هيكل استجابتك (Swagger)
-              let resData = refreshResponse.data;
-              if (resData && typeof resData === 'object' && 'succeeded' in resData) {
-                  resData = resData.data;
-              }
-              
-              const newToken = resData?.token || resData?.access_token;
-              const newRefreshToken = resData?.refreshToken || resData?.refresh_token || refreshToken;
+            // طلب التجديد
+            const response = await axios.post(`${API_BASE_URL}/auth/refresh?refreshToken=${encodeURIComponent(refreshToken)}`);
+            const newAuthToken = response.data?.token || response.data; 
+            
+            // 🚀 حفظ التوكن الجديد في الـ Session Storage مع الحفاظ على باقي بيانات المستخدم
+            const updatedAuthData = {
+                ...authData,
+                access_token: newAuthToken
+            };
+            sessionStorage.setItem(STORAGE_KEY_PREFIX, JSON.stringify(updatedAuthData));
+            
+            axiosInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
+            graphqlInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
 
-              if (newToken) {
-                  // تحديث الـ Session Storage
-                  const updatedData = { ...authData, access_token: newToken, refresh_token: newRefreshToken };
-                  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
+            processQueue(null, newAuthToken);
 
-                  // تحرير الطابور وتمرير التوكن الجديد
-                  processQueue(null, newToken);
-                  
-                  // إعادة إرسال الطلب الأصلي الذي فشل
-                  originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                  return axiosInstance(originalRequest);
-              }
-          }
-          throw new Error("No valid refresh token");
+            originalRequest.headers.Authorization = `Bearer ${newAuthToken}`;
+            return axios(originalRequest);
 
-      } catch (refreshError) {
-          // إذا فشل التجديد نهائياً، أفرغ الجلسة واطرد المستخدم
-          processQueue(refreshError, null);
-          sessionStorage.removeItem(STORAGE_KEY);
-          toast.error("انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.");
-          setTimeout(() => { window.location.href = '/login'; }, 1500);
-          return Promise.reject(refreshError);
-      } finally {
-          isRefreshing = false; 
-      }
-  }
-  
-  // ب. معالجة أخطاء الصلاحيات (403)
-  else if (error.response?.status === 403) {
-      toast.error("خطأ (403): ليس لديك صلاحية للقيام بهذا الإجراء!");
-  }
-  
-  // ج. معالجة أخطاء المدخلات (400 Bad Request) لقراءتها بوضوح
-  else if (error.response?.status === 400) {
-      const data = error.response.data;
-      if (data?.Errors && Array.isArray(data.Errors)) {
-          const errorMessages = data.Errors.map(e => e.description).join('\n');
-          toast.error(errorMessages, { duration: 5000 });
-      } else if (data?.errors) {
-          const errorMessages = Object.values(data.errors).flat().join('\n');
-          toast.error(`خطأ في البيانات:\n${errorMessages}`, { duration: 5000 });
-      } else if (data?.message || data?.detail) {
-          toast.error(`خطأ: ${data.message || data.detail}`);
-      }
-  }
-  
-  return Promise.reject(error);
-};
-
-// 🚀 ربط معالج الاستجابة بـ axiosInstance
-axiosInstance.interceptors.response.use(
-  (response) => {
-    // بناءً على Swagger، نفكك التغليفة إذا كانت موجودة
-    if (response.status === 204) return true;
-    const resData = response.data;
-    if (resData && typeof resData === 'object' && 'succeeded' in resData) {
-      if (resData.succeeded) return resData.data;
-      throw new Error(resData.message || 'Error occurred');
+        } catch (refreshError) {
+            processQueue(refreshError, null);
+            
+            // طرد المستخدم عند فشل التجديد
+            sessionStorage.removeItem(STORAGE_KEY_PREFIX);
+            window.location.href = '/login';
+            
+            return Promise.reject(refreshError);
+        } finally {
+            isRefreshing = false;
+        }
     }
-    return resData;
-  },
-  responseInterceptor
-);
 
-// 🚀 دالة معالجة روابط الصور
-export const getImageUrl = (path) => {
-  if (!path) return '/placeholder.png';
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  
-  const AWS_HOST = "hamaguide-alb-1031439526.eu-north-1.elb.amazonaws.com"; 
-  let cleanPath = path.replace(`http://${AWS_HOST}`, '').replace(`https://${AWS_HOST}`, '');
-  
-  if (!cleanPath.startsWith('/')) cleanPath = `/${cleanPath}`;
-  return `${AWS_SERVER_URL}${cleanPath}`; 
+    return Promise.reject(error);
 };
+
+axiosInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
+graphqlInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
 
 export default axiosInstance;

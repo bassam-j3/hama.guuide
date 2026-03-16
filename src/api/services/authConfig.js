@@ -1,7 +1,7 @@
 import axiosInstance from '../axiosConfig';
 
 const AUTH_BASE = '/auth';
-const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; 
+export const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; // قمنا بتصدير هذا المفتاح ليستخدمه Axios
 
 export const authService = {
 
@@ -40,43 +40,33 @@ export const authService = {
     return await axiosInstance.post(`${AUTH_BASE}/refresh`, null, { params: { refreshToken: token } });
   },
 
-  // 🚀 جلب بيانات الملف الشخصي (Swagger: GET /api/auth/me)
+  // 🚀 جلب بيانات الملف الشخصي 
   getMe: async () => {
     return await axiosInstance.get(`${AUTH_BASE}/me`);
   },
 
-  // 🚀 طلب إعادة تعيين الباسورد (Swagger: POST /api/auth/request-password-reset)
+  // 🚀 طلب إعادة تعيين الباسورد 
   requestPasswordReset: async (email) => {
     return await axiosInstance.post(`${AUTH_BASE}/request-password-reset`, null, { params: { email } });
   },
 
-  // 🚀 تغيير الإيميل (Swagger: POST /api/auth/email/change)
+  // 🚀 تغيير الإيميل 
   changeEmail: async (newEmail) => {
     return await axiosInstance.post(`${AUTH_BASE}/email/change`, { newEmail });
   },
-  // 🚀 تنفيذ تغيير كلمة المرور (Swagger: POST /api/auth/password-reset)
-  resetPassword: async (email, resetCode, newPassword) => {
-    return await axiosInstance.post(`${AUTH_BASE}/password-reset`, null, { 
-        params: { Email: email, ResetCode: resetCode, NewPassword: newPassword } 
-    });
-  },
 
-  // 🚀 تأكيد البريد الإلكتروني (إن احتجتها مستقبلاً) (Swagger: POST /api/auth/email/confirm)
+  // 🚀 تأكيد البريد الإلكتروني
   confirmEmailPost: async (email) => {
     return await axiosInstance.post(`${AUTH_BASE}/email/confirm`, null, { params: { email } });
   },
-  // إرسال كلمة المرور الجديدة مع الكود
+
+  // 🚀 تنفيذ تغيير كلمة المرور (مع الـ Query Parameters بناء على الـ Swagger)
   resetPassword: async (email, resetCode, newPassword) => {
-    // بناءً على الـ Swagger، الباك-إند يستقبلهم كـ Query Parameters
     const response = await axiosInstance.post(
         `/auth/password-reset?Email=${encodeURIComponent(email)}&ResetCode=${encodeURIComponent(resetCode)}&NewPassword=${encodeURIComponent(newPassword)}`
     );
     return response.data;
-},
-
-  
+  }
 };
-
-
 
 export default authService;
