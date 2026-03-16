@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { PersonCircle, Lock, BoxArrowInRight, Eye, EyeSlash, Person } from 'react-bootstrap-icons';
+import { PersonCircle, Lock, BoxArrowInRight, Eye, EyeSlash, Person, Key } from 'react-bootstrap-icons';
+import { Modal, Button, Form } from 'react-bootstrap';
 import { authService } from '../../api/services/authConfig';
 import toast from 'react-hot-toast';
+import { useMutation } from '@tanstack/react-query';
 
 const LoginPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const from = location.state?.from?.pathname || '/admin'; 
 
+    // حالة الفورم الأساسي
     const [userName, setUserName] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // حالة نافذة "نسيت كلمة المرور"
+    const [showResetModal, setShowResetModal] = useState(false);
+    const [resetEmail, setResetEmail] = useState('');
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -27,14 +34,12 @@ const LoginPage = () => {
             await authService.login(userName, password);
             toast.success("تم تسجيل الدخول بنجاح! جاري التوجيه...");
             
-            // تأخير بسيط لكي يرى المستخدم رسالة النجاح
             setTimeout(() => {
                 navigate(from, { replace: true });
             }, 800);
 
         } catch (err) {
             console.error(err);
-            // 🚀 قراءة الخطأ القادم من الباك-إند بذكاء
             let errorMsg = 'فشل تسجيل الدخول. تأكد من صحة بياناتك.';
             if (err.response?.data?.detail) {
                 errorMsg = err.response.data.detail;
@@ -45,6 +50,26 @@ const LoginPage = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // 🚀 React Query Mutation لطلب إعادة التعيين
+    const resetPasswordMutation = useMutation({
+        mutationFn: (email) => authService.requestPasswordReset(email),
+        onSuccess: () => {
+            toast.success("إذا كان الإيميل مسجلاً، ستصلك رسالة بكلمة المرور الجديدة.");
+            setShowResetModal(false);
+            setResetEmail('');
+        },
+        onError: (error) => {
+            const errorMsg = error.response?.data?.detail || "حدث خطأ أثناء إرسال الطلب. حاول لاحقاً.";
+            toast.error(errorMsg);
+        }
+    });
+
+    const handleResetSubmit = (e) => {
+        e.preventDefault();
+        if (!resetEmail.trim()) return toast.error("يرجى إدخال بريدك الإلكتروني.");
+        resetPasswordMutation.mutate(resetEmail);
     };
 
     return (
@@ -79,7 +104,18 @@ const LoginPage = () => {
                     </div>
                     
                     <div className="mb-5">
-                        <label className="form-label small fw-bold text-secondary">كلمة المرور</label>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <label className="form-label small fw-bold text-secondary mb-0">كلمة المرور</label>
+                            {/* 🚀 رابط "نسيت كلمة المرور" */}
+                            <button 
+                                type="button" 
+                                className="btn btn-link p-0 text-decoration-none small text-primary"
+                                onClick={() => setShowResetModal(true)}
+                                disabled={loading}
+                            >
+                                نسيت كلمة المرور؟
+                            </button>
+                        </div>
                         <div className="input-group input-group-lg shadow-sm">
                             <span className="input-group-text bg-white text-primary border-end-0 px-3">
                                 <Lock size={20} />
@@ -118,6 +154,46 @@ const LoginPage = () => {
                     </button>
                 </form>
             </div>
+
+            {/* 🚀 نافذة (Modal) استرجاع كلمة المرور */}
+            <Modal show={showResetModal} onHide={() => setShowResetModal(false)} centered dir="rtl">
+                <Form onSubmit={handleResetSubmit}>
+                    <Modal.Header className="border-0 pb-0">
+                        <button type="button" className="btn-close ms-0 me-auto" onClick={() => setShowResetModal(false)}></button>
+                    </Modal.Header>
+                    <Modal.Body className="text-center pt-0 px-4 px-md-5">
+                        <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex p-3 mb-3 shadow-sm">
+                            <Key size={32} />
+                        </div>
+                        <h4 className="fw-bold mb-2">نسيت كلمة المرور؟</h4>
+                        <p className="text-muted small mb-4">
+                            أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
+                        </p>
+                        
+                        <Form.Group className="text-start">
+                            <Form.Label className="small fw-bold text-secondary">البريد الإلكتروني</Form.Label>
+                            <Form.Control 
+                                type="email" 
+                                placeholder="name@example.com" 
+                                value={resetEmail} 
+                                onChange={(e) => setResetEmail(e.target.value)} 
+                                required 
+                                dir="ltr"
+                                className="form-control-lg fs-6 shadow-sm"
+                                disabled={resetPasswordMutation.isPending}
+                            />
+                        </Form.Group>
+                    </Modal.Body>
+                    <Modal.Footer className="border-0 pt-0 px-4 px-md-5 pb-4 d-flex gap-2">
+                        <Button variant="light" className="border w-100 m-0" onClick={() => setShowResetModal(false)} disabled={resetPasswordMutation.isPending}>
+                            إلغاء
+                        </Button>
+                        <Button variant="primary" type="submit" className="w-100 m-0 fw-bold shadow-sm" disabled={resetPasswordMutation.isPending}>
+                            {resetPasswordMutation.isPending ? <span className="spinner-border spinner-border-sm" /> : "إرسال الرابط"}
+                        </Button>
+                    </Modal.Footer>
+                </Form>
+            </Modal>
         </div>
     );
 };
