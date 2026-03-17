@@ -27,7 +27,6 @@ const PostEditPage = () => {
     const [uploading, setUploading] = useState(false);
     const [uploadingField, setUploadingField] = useState(null);
     const [previewImage, setPreviewImage] = useState('');
-    const [addressDisplay, setAddressDisplay] = useState('');
 
     // 1. جلب الخدمات والبوست في نفس الوقت
     const { data: initialData, isLoading: loadingInitial, isError: errorInitial } = useQuery({
@@ -63,12 +62,16 @@ const PostEditPage = () => {
                 else fieldValidator = fieldValidator.optional().or(z.literal(''));
             } 
             else if (field.fieldType === 'Int' || field.fieldType === 'Float' || field.fieldType === 'Decimal') {
-                fieldValidator = z.preprocess((val) => (val === '' || val === undefined ? undefined : Number(val)), 
+                fieldValidator = z.preprocess((val) => (val === '' || val === undefined || val === null ? undefined : Number(val)), 
                     field.isRequired ? z.number({ invalid_type_error: 'رقم غير صالح' }) : z.number().optional()
                 );
             } 
-            else if (field.fieldType === 'Bool') fieldValidator = z.boolean().optional();
-            else fieldValidator = field.isRequired ? z.string().min(1, 'مطلوب') : z.any().optional();
+            else if (field.fieldType === 'Bool') {
+                fieldValidator = z.boolean().optional();
+            }
+            else {
+                fieldValidator = field.isRequired ? z.string().min(1, 'مطلوب') : z.any().optional();
+            }
 
             payloadShape[field.fieldName] = fieldValidator;
         });
@@ -82,17 +85,27 @@ const PostEditPage = () => {
         });
     }, [schemaFields]);
 
-    // 4. إعداد React Hook Form وتعبئة البيانات القديمة
-    const { register, handleSubmit, control, setValue, reset, formState: { errors, isSubmitting } } = useForm({
+    // 4. إعداد React Hook Form
+    const { register, handleSubmit, control, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm({
         resolver: zodResolver(dynamicZodSchema),
+        defaultValues: {
+            title: '',
+            imageUrl: '',
+            latitude: 0,
+            longitude: 0,
+            payload: {}
+        }
     });
 
-    // تعبئة الفورم عندما تصل البيانات
+    // 🚀 مراقبة الإحداثيات لرسم الخريطة بطريقة صحيحة بدون تداخلات
+    const currentLat = watch('latitude');
+    const currentLng = watch('longitude');
+
+    // تعبئة الفورم بالبيانات القديمة
     useEffect(() => {
         if (initialData?.post && schemaFields.length >= 0) {
             const p = initialData.post;
             
-            // تجهيز הـ Payload حسب הـ Schema
             const initialPayload = {};
             schemaFields.forEach(field => {
                 const existingValue = p.payload ? p.payload[field.fieldName] : undefined;
@@ -102,8 +115,8 @@ const PostEditPage = () => {
             reset({
                 title: p.title || '',
                 imageUrl: p.imageUrl || '',
-                latitude: p.latitude || 0,
-                longitude: p.longitude || 0,
+                latitude: p.latitude || 35.1325,
+                longitude: p.longitude || 36.7515,
                 payload: initialPayload
             });
 
@@ -111,7 +124,6 @@ const PostEditPage = () => {
         }
     }, [initialData, schemaFields, reset]);
 
-    // معالج الرفع للـ Dynamic Fields
     const handleDynamicFileUpload = async (key, file, formOnChange) => {
         if (!file) return;
         setUploadingField(key);
@@ -119,7 +131,7 @@ const PostEditPage = () => {
         try {
             const res = await uploadFile(file);
             const url = res.fileUrl || res;
-            formOnChange(url); // تحديث الحقل في الفورم
+            formOnChange(url); 
             toast.success('تم رفع الملف بنجاح', { id: toastId }); 
         } catch {
             toast.error('فشل الرفع.', { id: toastId }); 
@@ -128,7 +140,6 @@ const PostEditPage = () => {
         }
     };
 
-    // معالج الرفع للصورة الأساسية
     const handleMainImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -137,7 +148,7 @@ const PostEditPage = () => {
         try {
             const result = await uploadFile(file);
             const url = result.fileUrl || result;
-            setValue('imageUrl', url); 
+            setValue('imageUrl', url, { shouldValidate: true }); 
             setPreviewImage(getImageUrl(url));
             toast.success('تم الرفع!', { id: toastId });
         } catch {
@@ -147,7 +158,6 @@ const PostEditPage = () => {
         }
     };
 
-    // 5. التحديث عبر React Query Mutation
     const updateMutation = useMutation({
         mutationFn: (body) => updatePostREST(serviceSlug, postId, body),
         onSuccess: () => {
@@ -157,15 +167,23 @@ const PostEditPage = () => {
             setTimeout(() => navigate(`/admin/services/${serviceSlug}/posts`), 1000);
         },
         onError: (err) => {
-            const errorMsg = err.response?.data?.Errors?.[0]?.description || err.response?.data?.detail || "فشل التحديث.";
-            toast.error(errorMsg);
+            // إذا كان الخطأ 500 فهذا من السيرفر
+            const status = err.response?.status;
+            if (status === 500) {
+                toast.error("خطأ 500: انهيار في السيرفر الداخلي (الرجاء مراجعة الباك-إند)");
+            } else {
+                const errorMsg = err.response?.data?.Errors?.[0]?.description || err.response?.data?.detail || "فشل التحديث.";
+                toast.error(errorMsg);
+            }
         }
     });
 
     const onSubmit = (data) => {
         const finalData = { ...data };
-        if (!finalData.latitude) finalData.latitude = 0;
-        if (!finalData.longitude) finalData.longitude = 0;
+        // حماية أخيرة قبل الإرسال للسيرفر
+        finalData.latitude = parseFloat(finalData.latitude) || 0;
+        finalData.longitude = parseFloat(finalData.longitude) || 0;
+        
         updateMutation.mutate(finalData);
     };
 
@@ -179,7 +197,9 @@ const PostEditPage = () => {
                     <h3 className="fw-bold mb-1 text-primary">تعديل المحتوى</h3>
                     <p className="text-muted small mb-0">لخدمة: <span className="fw-bold text-dark">{initialData?.service?.title}</span></p>
                 </div>
-                <button className="btn btn-outline-secondary btn-sm w-100 w-md-auto" onClick={() => navigate(-1)}><ArrowRight className="me-1"/> عودة</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm w-100 w-md-auto" onClick={() => navigate(-1)}>
+                    <ArrowRight className="me-1"/> عودة
+                </button>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="row g-4">
@@ -197,33 +217,27 @@ const PostEditPage = () => {
                         </div>
                         
                         <div className="mb-3">
-                            <label className="form-label fw-bold small"><GeoAltFill className="me-1"/> الموقع على الخريطة</label>
-                            <div className="border rounded p-2 bg-light">
-                                {/* نستخدم Controller للحصول على إحداثيات الموقع */}
-                                <Controller
-                                    name="latitude"
-                                    control={control}
-                                    render={({ field: latField }) => (
-                                        <Controller
-                                            name="longitude"
-                                            control={control}
-                                            render={({ field: lngField }) => (
-                                                <LocationPicker 
-                                                    key={`loc-${latField.value}-${lngField.value}`}
-                                                    initialLat={Number(latField.value) || 0} 
-                                                    initialLng={Number(lngField.value) || 0}
-                                                    onLocationSelect={(lat, lng, addr) => {
-                                                        latField.onChange(lat);
-                                                        lngField.onChange(lng);
-                                                        setAddressDisplay(addr);
-                                                    }}
-                                                />
-                                            )}
-                                        />
-                                    )}
+                            <label className="form-label fw-bold small"><GeoAltFill className="me-1"/> الموقع الجغرافي</label>
+                            <div className="p-3 border rounded-3 bg-light d-flex flex-column gap-2 align-items-start">
+                                {/* 🚀 الخريطة الموحدة السليمة */}
+                                <LocationPicker 
+                                    initialLat={Number(currentLat) || 35.1325} 
+                                    initialLng={Number(currentLng) || 36.7515} 
+                                    onLocationSelect={(lat, lng, address) => {
+                                        setValue('latitude', lat, { shouldValidate: true });
+                                        setValue('longitude', lng, { shouldValidate: true });
+                                        if (address) toast.success(`تم التحديث: ${address}`);
+                                    }} 
                                 />
-                                {addressDisplay && <div className="mt-2 p-2 bg-white border border-success rounded text-success fw-bold small"><GeoAltFill className="me-2" />{addressDisplay}</div>}
+                                <div className="small text-muted mt-2">
+                                    {currentLat && currentLng ? `الإحداثيات الحالية: ${Number(currentLat).toFixed(4)} , ${Number(currentLng).toFixed(4)}` : 'لم يتم تحديد موقع بعد'}
+                                </div>
                             </div>
+                            <input type="hidden" {...register('latitude')} />
+                            <input type="hidden" {...register('longitude')} />
+                            {(errors.latitude || errors.longitude) && (
+                                <div className="text-danger small mt-1">يرجى التأكد من الإحداثيات على الخريطة</div>
+                            )}
                         </div>
                     </div>
 
@@ -235,14 +249,24 @@ const PostEditPage = () => {
                             <div className="card-body p-4 row g-3">
                                 {schemaFields.map((field) => (
                                     <div key={field.fieldName} className="col-md-6">
+                                        <label className="form-label small fw-bold">
+                                            {field.fieldName} {field.isRequired && <span className="text-danger">*</span>}
+                                        </label>
                                         <Controller
                                             name={`payload.${field.fieldName}`}
                                             control={control}
                                             render={({ field: controllerField }) => (
                                                 <DynamicFieldRenderer 
                                                     fieldSchema={field} 
-                                                    value={controllerField.value} 
-                                                    onChange={controllerField.onChange}
+                                                    value={controllerField.value || ''} 
+                                                    // 🚀 Senior Fix: حماية ضد الأخطاء وتحديث سلس
+                                                    onChange={(val) => {
+                                                        if (val && val.target) {
+                                                            controllerField.onChange(val.target.value);
+                                                        } else {
+                                                            controllerField.onChange(val);
+                                                        }
+                                                    }}
                                                     onFileUpload={handleDynamicFileUpload}
                                                     uploadingField={uploadingField}
                                                 />
@@ -260,7 +284,7 @@ const PostEditPage = () => {
 
                 <div className="col-lg-4">
                     <div className="card border-0 shadow-sm p-4 rounded-4 mb-4 text-center">
-                        <label className="form-label fw-bold small mb-3">الصورة الأساسية</label>
+                        <label className="form-label fw-bold small mb-3">الصورة الأساسية (اختياري)</label>
                         <div className="bg-light border rounded-3 p-2 mb-3 position-relative" style={{minHeight: '180px'}}>
                             {previewImage ? (
                                 <img src={previewImage} className="img-fluid rounded w-100 h-100 object-fit-cover position-absolute top-0 start-0" />
@@ -270,6 +294,7 @@ const PostEditPage = () => {
                         </div>
                         <input type="file" className="form-control form-control-sm" accept="image/*" onChange={handleMainImageUpload} disabled={uploading || isSubmitting} />
                         <input type="hidden" {...register('imageUrl')} />
+                        {errors.imageUrl && <div className="text-danger small mt-1">{errors.imageUrl.message}</div>}
                     </div>
 
                     <button type="submit" className="btn btn-success w-100 py-3 fw-bold shadow-lg" disabled={updateMutation.isPending || isSubmitting}>
