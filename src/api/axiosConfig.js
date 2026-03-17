@@ -1,59 +1,138 @@
-import axiosInstance from '../axiosConfig';
+import axios from 'axios';
 
-const AUTH_BASE = '/auth';
-export const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; 
+// 🚀 قراءة الرابط من ملف .env ديناميكياً
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; 
 
-export const authService = {
-  getCurrentUser: () => {
-    try {
-      const storedData = sessionStorage.getItem(STORAGE_KEY_PREFIX);
-      if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        if (parsedData && parsedData.access_token) return parsedData.profile;
-      }
-    } catch (e) {}
-    return null;
-  },
-
-  login: async (userName, password) => {
-    const response = await axiosInstance.post(`${AUTH_BASE}/login`, { userName, password });
-    const data = response.data || response; // 🚀 فك الغلاف
-    const authData = {
-      access_token: data?.token,
-      refresh_token: data?.refreshToken,
-      profile: data?.user,
-      token_type: "Bearer"
-    };
-    sessionStorage.setItem(STORAGE_KEY_PREFIX, JSON.stringify(authData));
-    return authData;
-  },
-
-  logout: () => {
-    sessionStorage.removeItem(STORAGE_KEY_PREFIX);
-  },
-
-  register: async (userData) => {
-    const response = await axiosInstance.post(`${AUTH_BASE}/register`, userData);
-    return response.data;
-  },
-
-  refresh: async (token) => {
-    const response = await axiosInstance.post(`${AUTH_BASE}/refresh`, null, { params: { refreshToken: token } });
-    return response.data;
-  },
-
-  getMe: async () => {
-    const response = await axiosInstance.get(`${AUTH_BASE}/me`);
-    return response.data;
-  },
-
-  requestPasswordReset: async (email) => {
-    const response = await axiosInstance.post(`${AUTH_BASE}/request-password-reset`, null, { params: { email } });
-    return response.data;
-  },
-
-  changeEmail: async (newEmail) => {
-    const response = await axiosInstance.post(`${AUTH_BASE}/email/change`, { newEmail });
-    return response.data;
-  }
+// ==========================================
+// 🌟 دالة مساعدة لمعالجة روابط الصور
+// ==========================================
+export const getImageUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    
+    // استخراج الدومين من الرابط الأساسي برمجياً
+    const DOMAIN = API_BASE_URL.replace('/api', '');
+    return url.startsWith('/') ? `${DOMAIN}${url}` : `${DOMAIN}/${url}`;
 };
+
+// إنشاء نسخة Axios لطلبات الـ REST
+const axiosInstance = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// إنشاء نسخة Axios لطلبات الـ GraphQL
+export const graphqlInstance = axios.create({
+    baseURL: `${API_BASE_URL}/graphql`, 
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// دالة مساعدة لقراءة كائن الـ Auth من الـ Session Storage
+const getAuthData = () => {
+    try {
+        const storedData = sessionStorage.getItem(STORAGE_KEY_PREFIX);
+        return storedData ? JSON.parse(storedData) : null;
+    } catch {
+        return null;
+    }
+};
+
+// ==========================================
+// 🌟 نظام اعتراض الطلبات (Request Interceptor)
+// ==========================================
+const requestInterceptor = (config) => {
+    const authData = getAuthData();
+    if (authData && authData.access_token) {
+        config.headers.Authorization = `Bearer ${authData.access_token}`;
+    }
+    return config;
+};
+
+axiosInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
+graphqlInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
+
+// ==========================================
+// 🌟 نظام تجديد الجلسة التلقائي (Refresh Token)
+// ==========================================
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
+
+const responseErrorInterceptor = async (error) => {
+    const originalRequest = error.config;
+
+    // إذا كان الخطأ 401 (انتهت الجلسة) ولم تتم المحاولة من قبل
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+        
+        if (isRefreshing) {
+            return new Promise(function(resolve, reject) {
+                failedQueue.push({ resolve, reject });
+            }).then(token => {
+                originalRequest.headers.Authorization = `Bearer ${token}`;
+                return axios(originalRequest);
+            }).catch(err => Promise.reject(err));
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+            const authData = getAuthData();
+            const refreshToken = authData?.refresh_token;
+
+            if (!refreshToken) throw new Error("لا يوجد Refresh Token");
+
+            // طلب التجديد
+            const response = await axios.post(`${API_BASE_URL}/auth/refresh?refreshToken=${encodeURIComponent(refreshToken)}`);
+            const newAuthToken = response.data?.token || response.data; 
+            
+            // حفظ التوكن الجديد
+            const updatedAuthData = {
+                ...authData,
+                access_token: newAuthToken
+            };
+            sessionStorage.setItem(STORAGE_KEY_PREFIX, JSON.stringify(updatedAuthData));
+            
+            axiosInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
+            graphqlInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
+
+            processQueue(null, newAuthToken);
+
+            originalRequest.headers.Authorization = `Bearer ${newAuthToken}`;
+            return axios(originalRequest);
+
+        } catch (refreshError) {
+            processQueue(refreshError, null);
+            
+            // طرد المستخدم عند فشل التجديد
+            sessionStorage.removeItem(STORAGE_KEY_PREFIX);
+            window.location.href = '/login';
+            
+            return Promise.reject(refreshError);
+        } finally {
+            isRefreshing = false;
+        }
+    }
+
+    return Promise.reject(error);
+};
+
+axiosInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
+graphqlInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
+
+export default axiosInstance;
