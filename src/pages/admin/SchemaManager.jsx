@@ -32,19 +32,21 @@ const SchemaManager = () => {
     const { data: schemasData, isLoading: loadingSchemas, isError: errorSchemas } = useAllSchemas();
     const saveMutation = useSaveSchema();
 
+    // استخراج البيانات بشكل آمن
     const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
     const schemas = Array.isArray(schemasData) ? schemasData : (schemasData?.schemas || []); 
 
     const isLoading = loadingServices || loadingSchemas;
     const hasError = errorServices || errorSchemas;
 
-    // 🚀 دالة موحدة لإغلاق المودال وتنظيف الشاشة السوداء
+    // دالة موحدة لإغلاق المودال وتنظيف الشاشة السوداء
     const handleCloseModal = () => {
         const modalEl = document.getElementById('schemaModal');
         if (modalEl) {
             const modal = Modal.getInstance(modalEl);
             if (modal) modal.hide();
         }
+        // تنظيف بقايا Bootstrap
         setTimeout(() => {
             document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
             document.body.classList.remove('modal-open');
@@ -57,7 +59,7 @@ const SchemaManager = () => {
         setSelectedService(service); 
         setFields([]); 
 
-        // 🚀 فتح المودال برمجياً هنا بدلاً من الـ HTML attributes
+        // فتح المودال برمجياً
         const modalEl = document.getElementById('schemaModal');
         if (modalEl) {
             const modal = Modal.getOrCreateInstance(modalEl);
@@ -72,15 +74,17 @@ const SchemaManager = () => {
             
             const existing = res?.schema || res || []; 
             if (Array.isArray(existing) && existing.length > 0) {
+                // إضافة ID فريد لكل حقل موجود مسبقاً لتجنب فقدان التركيز (Focus)
                 setFields(existing.map(f => ({ 
                     ...f, 
+                    id: crypto.randomUUID(), 
                     presentation: f.presentation || f.Presentation || getPresentationOptions(f.fieldType || 'String')[0].value 
                 })));
             } else {
-                setFields([{ fieldName: "", isRequired: false, fieldType: "String", presentation: "نص عادي" }]);
+                setFields([{ id: crypto.randomUUID(), fieldName: "", isRequired: false, fieldType: "String", presentation: "نص عادي" }]);
             }
         } catch { 
-            setFields([{ fieldName: "", isRequired: false, fieldType: "String", presentation: "نص عادي" }]); 
+            setFields([{ id: crypto.randomUUID(), fieldName: "", isRequired: false, fieldType: "String", presentation: "نص عادي" }]); 
         }
     };
 
@@ -102,7 +106,7 @@ const SchemaManager = () => {
             { serviceId: selectedService.id, fields: payloadFields },
             {
                 onSuccess: () => {
-                    handleCloseModal(); // 🚀 استخدام دالة الإغلاق الموحدة
+                    handleCloseModal(); 
                 }
             }
         );
@@ -147,7 +151,6 @@ const SchemaManager = () => {
                                                 {hasSchema ? <span className="badge bg-success-subtle text-success border border-success px-3">مضبوط</span> : <span className="badge bg-light text-muted border px-3">فارغ</span>}
                                             </td>
                                             <td className="text-center">
-                                                {/* 🚀 إزالة data-bs-toggle لتجنب التعارض */}
                                                 <button className="btn btn-outline-primary btn-sm px-3 px-md-4 shadow-sm fw-bold" onClick={() => handleOpenModal(s)}>
                                                     تعديل
                                                 </button>
@@ -167,13 +170,13 @@ const SchemaManager = () => {
                     <div className="modal-content border-0 shadow-lg">
                         <div className="modal-header bg-light border-bottom">
                             <h5 className="modal-title fw-bold text-primary"><Gear className="me-2 mb-1"/> {selectedService?.title}</h5>
-                            {/* 🚀 استخدام دالة الإغلاق الموحدة بدلاً من data-bs-dismiss */}
                             <button type="button" className="btn-close ms-0 me-auto" onClick={handleCloseModal}></button>
                         </div>
                         <div className="modal-body bg-white p-3 p-md-4">
                             <div className="fields-container overflow-auto pe-1" style={{ maxHeight: '60vh' }}>
                                 {fields.map((field, index) => (
-                                    <div className="card mb-3 border-0 shadow-sm border-start border-4 border-primary bg-light" key={index}>
+                                    // الاعتماد على ID فريد لحل مشكلة فقدان التركيز (Focus)
+                                    <div className="card mb-3 border-0 shadow-sm border-start border-4 border-primary bg-light" key={field.id || index}>
                                         <div className="card-body p-3">
                                             <div className="row g-2 align-items-end">
                                                 <div className="col-12 col-md-3">
@@ -206,12 +209,12 @@ const SchemaManager = () => {
                                     </div>
                                 ))}
                             </div>
-                            <button className="btn btn-outline-primary w-100 py-2 fw-bold mt-3 border-2 border-dashed bg-primary bg-opacity-10" onClick={() => setFields([...fields, { fieldName: "", isRequired: false, fieldType: "String", presentation: "نص عادي" }])}>
+                            {/* إضافة حقل جديد مع ID فريد */}
+                            <button type="button" className="btn btn-outline-primary w-100 py-2 fw-bold mt-3 border-2 border-dashed bg-primary bg-opacity-10" onClick={() => setFields([...fields, { id: crypto.randomUUID(), fieldName: "", isRequired: false, fieldType: "String", presentation: "نص عادي" }])}>
                                 <PlusCircle className="ms-2 mb-1" /> إضافة حقل جديد
                             </button>
                         </div>
                         <div className="modal-footer border-0 bg-light p-3 p-md-4">
-                            {/* 🚀 استخدام دالة الإغلاق الموحدة بدلاً من data-bs-dismiss */}
                             <button className="btn btn-secondary w-100 w-md-auto mb-2 mb-md-0" onClick={handleCloseModal}>إلغاء</button>
                             <button className="btn btn-success w-100 w-md-auto px-5 fw-bold shadow" onClick={handleSave} disabled={saveMutation.isPending}>
                                 {saveMutation.isPending ? 'يتم الحفظ...' : 'حفظ المخطط'}

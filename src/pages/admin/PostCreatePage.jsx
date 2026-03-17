@@ -9,13 +9,14 @@ import toast from 'react-hot-toast';
 
 import { fetchAllServices } from '../../api/services/serviceService';
 import schemaService from '../../api/services/schemaService';
-import { createPostREST } from '../../api/services/postService'; // 🚀 استخدمنا الاسم الصحيح
+import { createPostREST } from '../../api/services/postService';
 import { uploadFile } from '../../api/services/fileService';
 import { getImageUrl } from '../../api/axiosConfig';
 
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import DynamicFieldRenderer from '../../components/posts/DynamicFieldRenderer'; 
+import LocationPicker from '../../components/common/LocationPicker'; // 🚀 استيراد الخريطة
 
 const PostCreatePage = () => {
     const { serviceSlug } = useParams();
@@ -25,7 +26,7 @@ const PostCreatePage = () => {
     const [uploading, setUploading] = useState(false);
     const [previewImage, setPreviewImage] = useState('');
 
-    // 1. جلب الخدمات لمعرفة ID الخدمة من الـ Slug
+    // 1. جلب الخدمات لمعرفة ID الخدمة
     const { data: servicesData, isLoading: loadingServices } = useQuery({
         queryKey: ['services'],
         queryFn: fetchAllServices,
@@ -34,7 +35,7 @@ const PostCreatePage = () => {
     const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
     const currentService = services.find(s => s.slug === serviceSlug);
 
-    // 2. جلب مخطط الحقول الديناميكية (Schema) لهذه الخدمة
+    // 2. جلب مخطط الحقول الديناميكية
     const { data: schemaData, isLoading: loadingSchema } = useQuery({
         queryKey: ['schema', currentService?.id],
         queryFn: () => schemaService.getSchemaByService(currentService.id),
@@ -43,14 +44,13 @@ const PostCreatePage = () => {
 
     const schemaFields = Array.isArray(schemaData) ? schemaData : (schemaData?.schema || schemaData || []);
 
-    // 🚀 3. السحر الحقيقي: بناء Zod Validation Schema ديناميكياً بناءً على حقول الباك-إند
+    // 3. بناء Zod Validation Schema
     const dynamicZodSchema = useMemo(() => {
         const payloadShape = {};
         
         schemaFields.forEach(field => {
             let fieldValidator = z.any();
             
-            // تحديد نوع التحقق بناءً على نوع الحقل
             if (field.fieldType === 'String' || field.fieldType === 'Email' || field.fieldType === 'PhoneNumber') {
                 fieldValidator = z.string();
                 if (field.isRequired) fieldValidator = fieldValidator.min(1, 'هذا الحقل مطلوب');
@@ -59,7 +59,6 @@ const PostCreatePage = () => {
                 if (field.fieldType === 'Email') fieldValidator = fieldValidator.email('بريد إلكتروني غير صالح');
             } 
             else if (field.fieldType === 'Int' || field.fieldType === 'Float' || field.fieldType === 'Decimal') {
-                // تحويل النص المدخل إلى رقم قبل التحقق
                 fieldValidator = z.preprocess(
                     (val) => (val === '' || val === undefined ? undefined : Number(val)), 
                     field.isRequired ? z.number({ invalid_type_error: 'يجب إدخال رقم صالح' }) : z.number().optional()
@@ -74,31 +73,34 @@ const PostCreatePage = () => {
             payloadShape[field.fieldName] = fieldValidator;
         });
 
-        // الشكل النهائي للملف المرسل للباك-إند حسب Swagger
         return z.object({
             title: z.string().min(3, 'العنوان يجب أن يكون 3 أحرف على الأقل'),
             imageUrl: z.string().optional().or(z.literal('')),
             latitude: z.preprocess((val) => (val ? Number(val) : undefined), z.number().optional()),
             longitude: z.preprocess((val) => (val ? Number(val) : undefined), z.number().optional()),
-            payload: z.object(payloadShape) // الحقول الديناميكية بداخل الـ payload
+            payload: z.object(payloadShape) 
         });
     }, [schemaFields]);
 
-    // 🚀 4. تهيئة React Hook Form مع Zod
-    const { register, handleSubmit, control, setValue, formState: { errors, isSubmitting } } = useForm({
+    // 4. تهيئة React Hook Form
+    const { register, handleSubmit, control, setValue, watch, formState: { errors, isSubmitting } } = useForm({
         resolver: zodResolver(dynamicZodSchema),
         defaultValues: {
             title: '',
             imageUrl: '',
-            latitude: '',
-            longitude: '',
+            latitude: 35.1325, // إحداثيات حماة الافتراضية
+            longitude: 36.7515,
             payload: {}
         }
     });
 
+    // 🚀 مراقبة قيم الخريطة الحالية لتحديث الدبوس
+    const currentLat = watch('latitude');
+    const currentLng = watch('longitude');
+
     // إرسال البيانات للباك-إند
     const createMutation = useMutation({
-        mutationFn: (data) => createPostREST(serviceSlug, data), // 🚀 استخدمنا الدالة الصحيحة هنا أيضاً
+        mutationFn: (data) => createPostREST(serviceSlug, data),
         onSuccess: () => {
             toast.success('تم إنشاء البوست بنجاح!');
             queryClient.invalidateQueries(['posts', serviceSlug]);
@@ -110,15 +112,13 @@ const PostCreatePage = () => {
     });
 
     const onSubmit = (data) => {
-        // التأكد من وضع الإحداثيات كأرقام أو حذفها إذا كانت فارغة لتطابق Swagger
         const finalData = { ...data };
         if (!finalData.latitude) finalData.latitude = 0;
         if (!finalData.longitude) finalData.longitude = 0;
-        
         createMutation.mutate(finalData);
     };
 
-    // معالج رفع الصور للبوست
+    // معالج رفع الصور
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -126,13 +126,12 @@ const PostCreatePage = () => {
         setUploading(true);
         const toastId = toast.loading('جاري رفع الصورة...');
         try {
-            const result = await uploadFile(file);
-            const url = result.fileUrl || result;
-            setValue('imageUrl', url); // وضع الرابط داخل الفورم
-            setPreviewImage(getImageUrl(url)); // للمعاينة
+            const url = await uploadFile(file);
+            setValue('imageUrl', url, { shouldValidate: true });
+            setPreviewImage(getImageUrl(url)); 
             toast.success('تم الرفع!', { id: toastId });
         } catch (err) {
-            toast.error('فشل الرفع!', { id: toastId });
+            toast.error(err.message || 'فشل الرفع!', { id: toastId });
         } finally {
             setUploading(false);
         }
@@ -154,15 +153,14 @@ const PostCreatePage = () => {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="row g-4">
-                {/* 🌟 العمود الأيمن: الحقول الأساسية والديناميكية */}
+                {/* العمود الأيمن */}
                 <div className="col-lg-8">
-                    {/* الحقول الأساسية */}
                     <div className="card border-0 shadow-sm rounded-4 mb-4">
                         <div className="card-header bg-white border-bottom p-4">
                             <h5 className="fw-bold mb-0 text-dark">المعلومات الأساسية</h5>
                         </div>
                         <div className="card-body p-4">
-                            <div className="mb-3">
+                            <div className="mb-4">
                                 <label className="form-label small fw-bold">العنوان (Title) <span className="text-danger">*</span></label>
                                 <input 
                                     type="text" 
@@ -173,27 +171,36 @@ const PostCreatePage = () => {
                                 {errors.title && <div className="invalid-feedback">{errors.title.message}</div>}
                             </div>
                             
-                            <div className="row">
-                                <div className="col-md-6 mb-3">
-                                    <label className="form-label small fw-bold"><GeoAlt/> خط العرض (Latitude)</label>
-                                    <input type="number" step="any" className={`form-control ${errors.latitude ? 'is-invalid' : ''}`} {...register('latitude')} placeholder="مثال: 35.13" />
-                                    {errors.latitude && <div className="invalid-feedback">{errors.latitude.message}</div>}
+                            {/* 🚀 قسم الخريطة المدمج */}
+                            <div className="mb-3">
+                                <label className="form-label small fw-bold"><GeoAlt className="me-1"/> الموقع الجغرافي</label>
+                                <div className="border rounded-3 overflow-hidden shadow-sm" style={{ height: '300px', width: '100%' }}>
+                                    <LocationPicker 
+                                        position={{ 
+                                            lat: Number(currentLat) || 35.1325, 
+                                            lng: Number(currentLng) || 36.7515 
+                                        }}
+                                        setPosition={(pos) => {
+                                            setValue('latitude', pos.lat, { shouldValidate: true });
+                                            setValue('longitude', pos.lng, { shouldValidate: true });
+                                        }}
+                                    />
                                 </div>
-                                <div className="col-md-6 mb-3">
-                                    <label className="form-label small fw-bold"><GeoAlt/> خط الطول (Longitude)</label>
-                                    <input type="number" step="any" className={`form-control ${errors.longitude ? 'is-invalid' : ''}`} {...register('longitude')} placeholder="مثال: 36.75" />
-                                    {errors.longitude && <div className="invalid-feedback">{errors.longitude.message}</div>}
-                                </div>
+                                {/* حقول مخفية للـ Form Validation */}
+                                <input type="hidden" {...register('latitude')} />
+                                <input type="hidden" {...register('longitude')} />
+                                {(errors.latitude || errors.longitude) && (
+                                    <div className="text-danger small mt-1">يرجى التأكد من الإحداثيات على الخريطة</div>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    {/* الحقول الديناميكية (الـ Payload) */}
+                    {/* الحقول الديناميكية */}
                     {schemaFields.length > 0 && (
                         <div className="card border-0 shadow-sm rounded-4 border-top border-4 border-primary">
                             <div className="card-header bg-white border-bottom p-4">
                                 <h5 className="fw-bold mb-0 text-primary">البيانات المخصصة للخدمة</h5>
-                                <p className="small text-muted mb-0 mt-1">هذه الحقول محددة برمجياً من الـ Schema Manager.</p>
                             </div>
                             <div className="card-body p-4 row g-3">
                                 {schemaFields.map(field => (
@@ -201,8 +208,6 @@ const PostCreatePage = () => {
                                         <label className="form-label small fw-bold">
                                             {field.fieldName} {field.isRequired && <span className="text-danger">*</span>}
                                         </label>
-                                        
-                                        {/* دمج DynamicFieldRenderer مع Controller الخاص بـ React Hook Form */}
                                         <Controller
                                             name={`payload.${field.fieldName}`}
                                             control={control}
@@ -224,7 +229,7 @@ const PostCreatePage = () => {
                     )}
                 </div>
 
-                {/* 🌟 العمود الأيسر: الصورة وزر الحفظ */}
+                {/* العمود الأيسر */}
                 <div className="col-lg-4">
                     <div className="card border-0 shadow-sm rounded-4 mb-4">
                         <div className="card-body p-4 text-center">
