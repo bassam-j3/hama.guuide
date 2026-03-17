@@ -123,8 +123,20 @@ const DynamicFieldRenderer = ({
             </div>
         );
     }
-
     if (fieldType === 'Address') {
+        // إذا كان هناك قيمة محفوظة مسبقاً (مصفوفة JSON)
+        let savedLat = 35.1325;
+        let savedLng = 36.7515;
+        try {
+            if (value) {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed) && parsed.length === 2) {
+                    savedLat = parsed[0];
+                    savedLng = parsed[1];
+                }
+            }
+        } catch(e) {}
+
         return (
             <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<GeoAltFill className="text-danger"/>}>
                 <div className="input-group shadow-sm flex-nowrap">
@@ -132,16 +144,21 @@ const DynamicFieldRenderer = ({
                     <input 
                         type="text" 
                         className="form-control border-start-0 text-truncate"
-                        placeholder="اختر من الخريطة..."
-                        value={value || ''}
+                        placeholder="تم تحديد الإحداثيات (اضغط الخريطة للتعديل)"
+                        value={value ? `[${savedLat.toFixed(4)}, ${savedLng.toFixed(4)}]` : ''}
                         readOnly 
                         style={{backgroundColor: '#fff'}}
                     />
                     <div className="flex-shrink-0">
+                        {/* 🚀 Senior Fix: توافق تام مع LocationPicker الجديد */}
                         <LocationPicker 
+                            initialLat={savedLat}
+                            initialLng={savedLng}
                             onLocationSelect={(lat, lng, addr) => {
+                                const locationArrayString = JSON.stringify([lat, lng]);
+                                // إرسال القيمة المحدثة للـ Form
+                                handleChange(locationArrayString);
                                 if(onAddressUpdate) onAddressUpdate(fieldName, lat, lng, addr, handleChange);
-                                else handleChange(JSON.stringify([lat, lng])); 
                             }} 
                         />
                     </div>
