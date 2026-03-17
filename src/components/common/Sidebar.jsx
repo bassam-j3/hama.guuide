@@ -13,6 +13,9 @@ import { authService } from '../../api/services/authConfig';
 import { useAuth } from '../../hooks/useAuth'; 
 // 🚀 استيراد useQueryClient للتحكم في الكاش
 import { useQueryClient } from '@tanstack/react-query'; 
+import logo from '../../assets/logo.svg';
+
+
 
 // --- Custom Hook: جلب البيانات وبناء الشجرة ---
 const useSidebarData = () => {

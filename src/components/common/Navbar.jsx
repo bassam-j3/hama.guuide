@@ -1,7 +1,7 @@
 import React from 'react';
 import { PersonCircle, List } from 'react-bootstrap-icons';
 import { authService } from '../../api/services/authConfig';
-
+import logo from '../../assets/logo.svg';
 const Navbar = ({ title, subtitle, toggleSidebar }) => {
   
   // جلب بيانات المستخدم مركزياً
@@ -30,7 +30,8 @@ const Navbar = ({ title, subtitle, toggleSidebar }) => {
               <p className="mb-0 small fw-bold text-dark">{userData?.username || 'مدير النظام'}</p>
               <p className="mb-0 text-secondary" style={{ fontSize: '0.7rem' }}>{userData?.role || 'Admin'}</p>
             </div>
-            <PersonCircle size={32} className="text-primary opacity-75" />
+                        <img src={logo} alt="شعار دليل حماة" style={{ width: '50px', height: '50px', objectFit: 'contain' }} />
+
           </div>
         </div>
       </div>

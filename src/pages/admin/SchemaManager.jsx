@@ -32,10 +32,11 @@ const SchemaManager = () => {
     const { data: schemasData, isLoading: loadingSchemas, isError: errorSchemas } = useAllSchemas();
     const saveMutation = useSaveSchema();
 
-    const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
-    const schemas = Array.isArray(schemasData) ? schemasData : (schemasData?.schemas || schemasData || []);
+// 🚀 الكود الآمن 100%
+const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
+const schemas = Array.isArray(schemasData) ? schemasData : (schemasData?.schemas || []); // أزلنا الخطأ من هنا
 
-    const isLoading = loadingServices || loadingSchemas;
+const isLoading = loadingServices || loadingSchemas;
     const hasError = errorServices || errorSchemas;
 
     const handleOpenModal = async (service) => {
