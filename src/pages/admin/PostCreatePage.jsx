@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 
 import { fetchAllServices } from '../../api/services/serviceService';
 import schemaService from '../../api/services/schemaService';
-import { createPost } from '../../api/services/postService';
+import { createPostREST } from '../../api/services/postService'; // 🚀 استخدمنا الاسم الصحيح
 import { uploadFile } from '../../api/services/fileService';
 import { getImageUrl } from '../../api/axiosConfig';
 
@@ -98,7 +98,7 @@ const PostCreatePage = () => {
 
     // إرسال البيانات للباك-إند
     const createMutation = useMutation({
-        mutationFn: (data) => createPost(serviceSlug, data),
+        mutationFn: (data) => createPostREST(serviceSlug, data), // 🚀 استخدمنا الدالة الصحيحة هنا أيضاً
         onSuccess: () => {
             toast.success('تم إنشاء البوست بنجاح!');
             queryClient.invalidateQueries(['posts', serviceSlug]);
