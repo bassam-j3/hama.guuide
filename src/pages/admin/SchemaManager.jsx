@@ -80,14 +80,25 @@ const isLoading = loadingServices || loadingSchemas;
             { serviceId: selectedService.id, fields: payloadFields },
             {
                 onSuccess: () => {
+                    // 1. إغلاق المودال برمجياً
                     const modalEl = document.getElementById('schemaModal');
-                    const modal = Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
+                    if (modalEl) {
+                        // استخدام getOrCreateInstance لتفادي أن يكون المودال غير معرف
+                        const modal = Modal.getInstance(modalEl) || Modal.getOrCreateInstance(modalEl);
+                        modal.hide();
+                    }
+                    
+                    // 2. 🚀 الحل السحري: إزالة الشاشة السوداء (Backdrop) يدوياً وإعادة التمرير
+                    setTimeout(() => {
+                        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                        document.body.classList.remove('modal-open');
+                        document.body.style.removeProperty('overflow');
+                        document.body.style.removeProperty('padding-right');
+                    }, 200); // ننتظر 200 جزء من الثانية لكي ينتهي الأنيميشن الخاص بـ Bootstrap
                 }
             }
         );
     };
-
     if (isLoading) return <LoadingSpinner message="جاري التحميل..." />;
 
     return (
