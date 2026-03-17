@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// 🚀 قراءة الرابط من ملف .env ديناميكياً
+// قراءة الرابط من ملف .env ديناميكياً
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; 
 
@@ -12,7 +12,7 @@ export const getImageUrl = (url) => {
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
     
     // استخراج الدومين من الرابط الأساسي برمجياً
-    const DOMAIN = API_BASE_URL.replace('/api', '');
+    const DOMAIN = API_BASE_URL.replace(/\/api\/?$/i, '');
     return url.startsWith('/') ? `${DOMAIN}${url}` : `${DOMAIN}/${url}`;
 };
 
@@ -24,12 +24,12 @@ const axiosInstance = axios.create({
     },
 });
 
-// 🚀 Senior Fix: إزالة /api من مسار الـ GraphQL بناءً على إعدادات السيرفر
-const GRAPHQL_DOMAIN = API_BASE_URL.replace('/api', '');
+// 🚀 Senior Fix: إزالة /api من الرابط للوصول للـ GraphQL على الدومين الرئيسي
+const GRAPHQL_DOMAIN = API_BASE_URL.replace(/\/api\/?$/i, '');
 
 // إنشاء نسخة Axios لطلبات الـ GraphQL
 export const graphqlInstance = axios.create({
-    baseURL: `${GRAPHQL_DOMAIN}/graphql`, 
+    baseURL: `${GRAPHQL_DOMAIN}/graphql`, // سيصبح http://.../graphql
     headers: {
         'Content-Type': 'application/json',
     },
@@ -79,9 +79,7 @@ const processQueue = (error, token = null) => {
 const responseErrorInterceptor = async (error) => {
     const originalRequest = error.config;
 
-    // إذا كان الخطأ 401 (انتهت الجلسة) ولم تتم المحاولة من قبل
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
-        
         if (isRefreshing) {
             return new Promise(function(resolve, reject) {
                 failedQueue.push({ resolve, reject });
@@ -100,11 +98,9 @@ const responseErrorInterceptor = async (error) => {
 
             if (!refreshToken) throw new Error("لا يوجد Refresh Token");
 
-            // طلب التجديد
             const response = await axios.post(`${API_BASE_URL}/auth/refresh?refreshToken=${encodeURIComponent(refreshToken)}`);
             const newAuthToken = response.data?.token || response.data; 
             
-            // حفظ التوكن الجديد
             const updatedAuthData = {
                 ...authData,
                 access_token: newAuthToken
@@ -121,17 +117,13 @@ const responseErrorInterceptor = async (error) => {
 
         } catch (refreshError) {
             processQueue(refreshError, null);
-            
-            // طرد المستخدم عند فشل التجديد
             sessionStorage.removeItem(STORAGE_KEY_PREFIX);
             window.location.href = '/login';
-            
             return Promise.reject(refreshError);
         } finally {
             isRefreshing = false;
         }
     }
-
     return Promise.reject(error);
 };
 
