@@ -214,8 +214,18 @@ const PostCreatePage = () => {
                                             render={({ field: controllerField }) => (
                                                 <DynamicFieldRenderer 
                                                     fieldSchema={field} 
-                                                    value={controllerField.value} 
-                                                    onChange={controllerField.onChange} 
+                                                    value={controllerField.value || ''} 
+                                                    // 🚀 Senior Fix: إجبار الدالة على استلام القيمة وإرسالها بشكل صريح لـ react-hook-form
+                                                    onChange={(val) => {
+                                                        // إذا كان الحدث (Event) قادماً من input عادي
+                                                        if (val && val.target) {
+                                                            controllerField.onChange(val.target.value);
+                                                        } 
+                                                        // إذا كانت القيمة مباشرة (مثل مكونات React Select)
+                                                        else {
+                                                            controllerField.onChange(val);
+                                                        }
+                                                    }} 
                                                 />
                                             )}
                                         />
