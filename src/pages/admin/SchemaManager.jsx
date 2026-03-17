@@ -32,16 +32,38 @@ const SchemaManager = () => {
     const { data: schemasData, isLoading: loadingSchemas, isError: errorSchemas } = useAllSchemas();
     const saveMutation = useSaveSchema();
 
-// 🚀 الكود الآمن 100%
-const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
-const schemas = Array.isArray(schemasData) ? schemasData : (schemasData?.schemas || []); // أزلنا الخطأ من هنا
+    const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
+    const schemas = Array.isArray(schemasData) ? schemasData : (schemasData?.schemas || []); 
 
-const isLoading = loadingServices || loadingSchemas;
+    const isLoading = loadingServices || loadingSchemas;
     const hasError = errorServices || errorSchemas;
+
+    // 🚀 دالة موحدة لإغلاق المودال وتنظيف الشاشة السوداء
+    const handleCloseModal = () => {
+        const modalEl = document.getElementById('schemaModal');
+        if (modalEl) {
+            const modal = Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        }
+        setTimeout(() => {
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        }, 200);
+    };
 
     const handleOpenModal = async (service) => {
         setSelectedService(service); 
         setFields([]); 
+
+        // 🚀 فتح المودال برمجياً هنا بدلاً من الـ HTML attributes
+        const modalEl = document.getElementById('schemaModal');
+        if (modalEl) {
+            const modal = Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        }
+
         try {
             const res = await queryClient.fetchQuery({
                 queryKey: ['schema', service.id],
@@ -80,25 +102,12 @@ const isLoading = loadingServices || loadingSchemas;
             { serviceId: selectedService.id, fields: payloadFields },
             {
                 onSuccess: () => {
-                    // 1. إغلاق المودال برمجياً
-                    const modalEl = document.getElementById('schemaModal');
-                    if (modalEl) {
-                        // استخدام getOrCreateInstance لتفادي أن يكون المودال غير معرف
-                        const modal = Modal.getInstance(modalEl) || Modal.getOrCreateInstance(modalEl);
-                        modal.hide();
-                    }
-                    
-                    // 2. 🚀 الحل السحري: إزالة الشاشة السوداء (Backdrop) يدوياً وإعادة التمرير
-                    setTimeout(() => {
-                        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-                        document.body.classList.remove('modal-open');
-                        document.body.style.removeProperty('overflow');
-                        document.body.style.removeProperty('padding-right');
-                    }, 200); // ننتظر 200 جزء من الثانية لكي ينتهي الأنيميشن الخاص بـ Bootstrap
+                    handleCloseModal(); // 🚀 استخدام دالة الإغلاق الموحدة
                 }
             }
         );
     };
+
     if (isLoading) return <LoadingSpinner message="جاري التحميل..." />;
 
     return (
@@ -138,7 +147,8 @@ const isLoading = loadingServices || loadingSchemas;
                                                 {hasSchema ? <span className="badge bg-success-subtle text-success border border-success px-3">مضبوط</span> : <span className="badge bg-light text-muted border px-3">فارغ</span>}
                                             </td>
                                             <td className="text-center">
-                                                <button className="btn btn-outline-primary btn-sm px-3 px-md-4 shadow-sm fw-bold" onClick={() => handleOpenModal(s)} data-bs-toggle="modal" data-bs-target="#schemaModal">
+                                                {/* 🚀 إزالة data-bs-toggle لتجنب التعارض */}
+                                                <button className="btn btn-outline-primary btn-sm px-3 px-md-4 shadow-sm fw-bold" onClick={() => handleOpenModal(s)}>
                                                     تعديل
                                                 </button>
                                             </td>
@@ -157,7 +167,8 @@ const isLoading = loadingServices || loadingSchemas;
                     <div className="modal-content border-0 shadow-lg">
                         <div className="modal-header bg-light border-bottom">
                             <h5 className="modal-title fw-bold text-primary"><Gear className="me-2 mb-1"/> {selectedService?.title}</h5>
-                            <button type="button" className="btn-close ms-0 me-auto" data-bs-dismiss="modal"></button>
+                            {/* 🚀 استخدام دالة الإغلاق الموحدة بدلاً من data-bs-dismiss */}
+                            <button type="button" className="btn-close ms-0 me-auto" onClick={handleCloseModal}></button>
                         </div>
                         <div className="modal-body bg-white p-3 p-md-4">
                             <div className="fields-container overflow-auto pe-1" style={{ maxHeight: '60vh' }}>
@@ -200,7 +211,8 @@ const isLoading = loadingServices || loadingSchemas;
                             </button>
                         </div>
                         <div className="modal-footer border-0 bg-light p-3 p-md-4">
-                            <button className="btn btn-secondary w-100 w-md-auto mb-2 mb-md-0" data-bs-dismiss="modal">إلغاء</button>
+                            {/* 🚀 استخدام دالة الإغلاق الموحدة بدلاً من data-bs-dismiss */}
+                            <button className="btn btn-secondary w-100 w-md-auto mb-2 mb-md-0" onClick={handleCloseModal}>إلغاء</button>
                             <button className="btn btn-success w-100 w-md-auto px-5 fw-bold shadow" onClick={handleSave} disabled={saveMutation.isPending}>
                                 {saveMutation.isPending ? 'يتم الحفظ...' : 'حفظ المخطط'}
                             </button>
