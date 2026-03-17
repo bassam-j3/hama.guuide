@@ -123,6 +123,7 @@ const DynamicFieldRenderer = ({
             </div>
         );
     }
+
     if (fieldType === 'Address') {
         // إذا كان هناك قيمة محفوظة مسبقاً (مصفوفة JSON)
         let savedLat = 35.1325;
@@ -156,7 +157,6 @@ const DynamicFieldRenderer = ({
                             initialLng={savedLng}
                             onLocationSelect={(lat, lng, addr) => {
                                 const locationArrayString = JSON.stringify([lat, lng]);
-                                // إرسال القيمة المحدثة للـ Form
                                 handleChange(locationArrayString);
                                 if(onAddressUpdate) onAddressUpdate(fieldName, lat, lng, addr, handleChange);
                             }} 

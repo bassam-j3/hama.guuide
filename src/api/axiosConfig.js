@@ -24,9 +24,12 @@ const axiosInstance = axios.create({
     },
 });
 
+// 🚀 Senior Fix: إزالة /api من مسار الـ GraphQL بناءً على إعدادات السيرفر
+const GRAPHQL_DOMAIN = API_BASE_URL.replace('/api', '');
+
 // إنشاء نسخة Axios لطلبات الـ GraphQL
 export const graphqlInstance = axios.create({
-    baseURL: `${API_BASE_URL}/graphql`, 
+    baseURL: `${GRAPHQL_DOMAIN}/graphql`, 
     headers: {
         'Content-Type': 'application/json',
     },
