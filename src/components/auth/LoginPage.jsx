@@ -5,7 +5,7 @@ import { Modal, Button, Form } from 'react-bootstrap';
 import { authService } from '../../api/services/authConfig';
 import toast from 'react-hot-toast';
 import { useMutation } from '@tanstack/react-query';
-
+import logo from '../../assets/logo.svg';
 const LoginPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -76,8 +76,8 @@ const LoginPage = () => {
         <div className="vh-100 d-flex align-items-center justify-content-center bg-light" dir="rtl">
             <div className="card border-0 shadow-lg p-4 p-md-5 m-3 w-100 rounded-4" style={{ maxWidth: '450px' }}>
                 <div className="text-center mb-5">
-                    <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex p-4 mb-3 shadow-sm">
-                        <PersonCircle size={40} />
+                <div className="bg-primary bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3 shadow-sm align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
+                        <img src={logo} alt="شعار دليل حماة" style={{ width: '50px', height: '50px', objectFit: 'contain' }} />
                     </div>
                     <h3 className="fw-bold text-dark mb-1">دليل حماة</h3>
                     <p className="text-muted small">سجل دخولك للوصول للوحة التحكم الآمنة</p>
