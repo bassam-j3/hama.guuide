@@ -1,47 +1,27 @@
 import axiosInstance, { graphqlInstance } from '../axiosConfig';
 
-// 🚀 جلب البوستات مع الإحداثيات الصحيحة
 export const fetchPostsByServiceSlug = async (serviceSlug) => {
   const query = `
     query GetServicePosts($serviceSlug: String!) {
       posts(where: { service: { slug: { eq: $serviceSlug } } }) {
-        nodes {
-          id
-          title
-          imageUrl
-          createdAt
-          payload
-          ratingAvg
-          ratingCount
-          location {
-            latitude
-            longitude
-          }
-        }
+        nodes { id title imageUrl createdAt payload ratingAvg ratingCount location { latitude longitude } }
       }
     }
   `;
   try {
-    const response = await graphqlInstance.post('', { 
-        query, 
-        variables: { serviceSlug } 
-    });
-    
+    const response = await graphqlInstance.post('', { query, variables: { serviceSlug } });
     if (response.data.errors) return [];
     const nodes = response.data?.data?.posts?.nodes || [];
-    
-    // تحويل الـ Payload إلى Object إذا كان نصاً، ليتعامل معه React بسهولة
     return nodes.map(post => ({
       ...post, 
       payload: typeof post.payload === 'string' ? JSON.parse(post.payload) : (post.payload || {})
     }));
-  } catch (error) { 
-    return []; 
-  }
+  } catch (error) { return []; }
 };
 
 export const getPostById = async (serviceSlug, postId) => {
-    const post = await axiosInstance.get(`/${serviceSlug}/${postId}`);
+    const response = await axiosInstance.get(`/${serviceSlug}/${postId}`);
+    const post = response.data || response; // 🚀 فك الغلاف
     let latitude = 0, longitude = 0;
     if (post.location) { 
         latitude = post.location.latitude || post.location.y || 0; 
@@ -54,29 +34,31 @@ export const getPostById = async (serviceSlug, postId) => {
     return { ...post, latitude: parseFloat(latitude) || 0, longitude: parseFloat(longitude) || 0, payload: parsedPayload };
 };
 
-// 🚀 إصلاح خطأ `postData is not defined`
 export const createPostREST = async (serviceSlug, data) => {
-  return await axiosInstance.post(`/${serviceSlug}`, {
+  const response = await axiosInstance.post(`/${serviceSlug}`, {
     title: data.title, 
     imageUrl: data.imageUrl || null, 
-    payload: data.payload, // إرسال كـ Object كما يحبه الـ Backend القديم
+    payload: data.payload, 
     latitude: parseFloat(data.latitude) || 0, 
     longitude: parseFloat(data.longitude) || 0
   });
+  return response.data;
 };
 
 export const updatePostREST = async (serviceSlug, postId, data) => {
-  return await axiosInstance.put(`/${serviceSlug}/${postId}`, {
+  const response = await axiosInstance.put(`/${serviceSlug}/${postId}`, {
     title: data.title, 
     payload: data.payload,
     imageUrl: data.imageUrl || null, 
     latitude: parseFloat(data.latitude) || 0, 
     longitude: parseFloat(data.longitude) || 0
   });
+  return response.data;
 };
 
 export const deletePostREST = async (serviceSlug, postId) => {
-  return await axiosInstance.delete(`/${serviceSlug}/${postId}`);
+  const response = await axiosInstance.delete(`/${serviceSlug}/${postId}`);
+  return response.data;
 };
 
 export const fetchAllAll = async () => {
@@ -87,12 +69,7 @@ export const fetchAllAll = async () => {
   } catch (error) { return []; }
 };
 
-export const addPostRating = async (postId, ratingValue) => {
-    return await axiosInstance.post(`/posts/${postId}/rating`, {
-        value: parseInt(ratingValue, 10)
-    });
-};
-
 export const deletePostRating = async (postId) => {
-    return await axiosInstance.delete(`/posts/${postId}/rating`);
+    const response = await axiosInstance.delete(`/posts/${postId}/rating`);
+    return response.data;
 };

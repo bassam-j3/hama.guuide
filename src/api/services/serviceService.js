@@ -5,11 +5,13 @@ const API_SCHEMAS = '/Schemas';
 const API_SECTIONS = '/Sections';
 
 export const fetchAllServices = async () => {
-    return await axiosInstance.get(API_SERVICES);
+    const response = await axiosInstance.get(API_SERVICES);
+    return response.data; // 🚀 فك الغلاف
 };
 
 export const fetchServiceById = async (id) => {
-    return await axiosInstance.get(`${API_SERVICES}/${id}`);
+    const response = await axiosInstance.get(`${API_SERVICES}/${id}`);
+    return response.data;
 };
 
 export const createService = async (serviceData) => {
@@ -28,7 +30,8 @@ export const createService = async (serviceData) => {
         }))
     };
     
-    return await axiosInstance.post(API_SERVICES, payload);
+    const response = await axiosInstance.post(API_SERVICES, payload);
+    return response.data;
 };
 
 export const updateService = async (id, serviceData) => {
@@ -55,35 +58,19 @@ export const updateService = async (id, serviceData) => {
         await axiosInstance.post(API_SCHEMAS, schemaPayload).catch(console.warn);
     }
 
-    // 🚀 الإصلاح الجوهري هنا (تمت إضافته بشكل صحيح)
     if (serviceData.sectionId) {
-        try {
-            await axiosInstance.put(`${API_SECTIONS}/${serviceData.sectionId}/services/${id}`);
-        } catch (e) {
-            console.warn("Failed to update section link", e);
-        }
+        try { await axiosInstance.put(`${API_SECTIONS}/${serviceData.sectionId}/services/${id}`); } catch (e) { console.warn(e); }
     } else if (serviceData.sectionId === null) {
-        // فك الارتباط
-        try {
-            await axiosInstance.delete(`${API_SECTIONS}/services/${id}`);
-        } catch (e) {
-            console.warn("Failed to unlink service from section", e);
-        }
+        try { await axiosInstance.delete(`${API_SECTIONS}/services/${id}`); } catch (e) { console.warn(e); }
     }
 
     return true;
 };
 
 export const deleteService = async (id) => {
-    return await axiosInstance.delete(`${API_SERVICES}/${id}`);
+    const response = await axiosInstance.delete(`${API_SERVICES}/${id}`);
+    return response.data;
 };
 
-const serviceService = {
-    fetchAllServices,
-    fetchServiceById,
-    createService,
-    updateService,
-    deleteService
-};
-
+const serviceService = { fetchAllServices, fetchServiceById, createService, updateService, deleteService };
 export default serviceService;
