@@ -39,30 +39,27 @@ const SchemaManager = () => {
     const isLoading = loadingServices || loadingSchemas;
     const hasError = errorServices || errorSchemas;
 
-    // دالة موحدة لإغلاق المودال وتنظيف الشاشة السوداء
+    // دالة إغلاق المودال 
     const handleCloseModal = () => {
         const modalEl = document.getElementById('schemaModal');
         if (modalEl) {
             const modal = Modal.getInstance(modalEl);
             if (modal) modal.hide();
         }
-        // تنظيف بقايا Bootstrap
-        setTimeout(() => {
-            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-            document.body.classList.remove('modal-open');
-            document.body.style.removeProperty('overflow');
-            document.body.style.removeProperty('padding-right');
-        }, 200);
+        // تنظيف إضافي لضمان عدم وجود أي بقايا
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
     };
 
     const handleOpenModal = async (service) => {
         setSelectedService(service); 
         setFields([]); 
 
-        // فتح المودال برمجياً
+        // 🚀 فتح المودال مع منع تكوين الشاشة السوداء (backdrop: false)
         const modalEl = document.getElementById('schemaModal');
         if (modalEl) {
-            const modal = Modal.getOrCreateInstance(modalEl);
+            const modal = Modal.getOrCreateInstance(modalEl, { backdrop: false });
             modal.show();
         }
 
@@ -74,7 +71,6 @@ const SchemaManager = () => {
             
             const existing = res?.schema || res || []; 
             if (Array.isArray(existing) && existing.length > 0) {
-                // إضافة ID فريد لكل حقل موجود مسبقاً لتجنب فقدان التركيز (Focus)
                 setFields(existing.map(f => ({ 
                     ...f, 
                     id: crypto.randomUUID(), 
@@ -164,53 +160,90 @@ const SchemaManager = () => {
                 </div>
             )}
 
-            {/* Modal */}
-            <div className="modal fade" id="schemaModal" tabIndex="-1" aria-hidden="true">
-                <div className="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
-                    <div className="modal-content border-0 shadow-lg">
+            {/* Modal: تمت إضافة data-bs-backdrop="false" لمنع الخلفية السوداء */}
+            <div className="modal fade" id="schemaModal" tabIndex="-1" aria-hidden="true" data-bs-backdrop="false">
+                {/* تم إضافة shadow-lg للمودال لكي يبرز فوق الصفحة بما أننا أزلنا الخلفية المظلمة */}
+                <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down">
+                    <div className="modal-content border-0 shadow-lg" style={{boxShadow: '0 1rem 3rem rgba(0,0,0,0.175)'}}>
                         <div className="modal-header bg-light border-bottom">
                             <h5 className="modal-title fw-bold text-primary"><Gear className="me-2 mb-1"/> {selectedService?.title}</h5>
                             <button type="button" className="btn-close ms-0 me-auto" onClick={handleCloseModal}></button>
                         </div>
                         <div className="modal-body bg-white p-3 p-md-4">
-                            <div className="fields-container overflow-auto pe-1" style={{ maxHeight: '60vh' }}>
+                            <div className="fields-container overflow-x-hidden pe-1">
                                 {fields.map((field, index) => (
-                                    // الاعتماد على ID فريد لحل مشكلة فقدان التركيز (Focus)
                                     <div className="card mb-3 border-0 shadow-sm border-start border-4 border-primary bg-light" key={field.id || index}>
                                         <div className="card-body p-3">
-                                            <div className="row g-2 align-items-end">
-                                                <div className="col-12 col-md-3">
+                                            {/* 🚀 تصميم متجاوب (Responsive) أفضل بكثير */}
+                                            <div className="row g-3 align-items-end">
+                                                
+                                                <div className="col-12 col-md-4 col-lg-3">
                                                     <label className="small fw-bold mb-1 text-secondary">اسم الحقل (بالانجليزية)</label>
-                                                    <input type="text" className="form-control form-control-sm border-0 shadow-sm" value={field.fieldName} dir="ltr" onChange={e => { const t = [...fields]; t[index].fieldName = e.target.value.replace(/\s+/g, ''); setFields(t); }} required placeholder="مثال: phoneNumber" />
+                                                    <input 
+                                                        type="text" 
+                                                        className="form-control border-0 shadow-sm" 
+                                                        value={field.fieldName} 
+                                                        dir="ltr" 
+                                                        onChange={e => { const t = [...fields]; t[index].fieldName = e.target.value.replace(/\s+/g, ''); setFields(t); }} 
+                                                        required 
+                                                        placeholder="مثال: phoneNumber" 
+                                                    />
                                                 </div>
-                                                <div className="col-6 col-md-3">
+
+                                                <div className="col-6 col-md-4 col-lg-3">
                                                     <label className="small fw-bold mb-1 text-secondary">نوع البيانات</label>
-                                                    <select className="form-select form-select-sm border-0 shadow-sm" value={field.fieldType} onChange={e => { const t = [...fields]; t[index].fieldType = e.target.value; t[index].presentation = getPresentationOptions(e.target.value)[0].value; setFields(t); }}>
+                                                    <select 
+                                                        className="form-select border-0 shadow-sm" 
+                                                        value={field.fieldType} 
+                                                        onChange={e => { const t = [...fields]; t[index].fieldType = e.target.value; t[index].presentation = getPresentationOptions(e.target.value)[0].value; setFields(t); }}
+                                                    >
                                                         {ALL_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
                                                     </select>
                                                 </div>
-                                                <div className="col-6 col-md-3">
+
+                                                <div className="col-6 col-md-4 col-lg-3">
                                                     <label className="small fw-bold mb-1 text-secondary">طريقة العرض <span className="text-danger">*</span></label>
-                                                    <select className="form-select form-select-sm border-0 shadow-sm text-primary fw-bold" required value={field.presentation || getPresentationOptions(field.fieldType)[0].value} onChange={e => { const t = [...fields]; t[index].presentation = e.target.value; setFields(t); }}>
+                                                    <select 
+                                                        className="form-select border-0 shadow-sm text-primary fw-bold" 
+                                                        required 
+                                                        value={field.presentation || getPresentationOptions(field.fieldType)[0].value} 
+                                                        onChange={e => { const t = [...fields]; t[index].presentation = e.target.value; setFields(t); }}
+                                                    >
                                                         {getPresentationOptions(field.fieldType).map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                                     </select>
                                                 </div>
-                                                <div className="col-10 col-md-2 mt-2 mt-md-0 text-md-center">
-                                                    <div className="form-check form-switch d-inline-block mb-0">
-                                                        <input className="form-check-input cursor-pointer" type="checkbox" checked={field.isRequired} onChange={e => { const t = [...fields]; t[index].isRequired = e.target.checked; setFields(t); }} id={`req-${index}`} />
-                                                        <label className="small fw-bold ms-2 cursor-pointer" htmlFor={`req-${index}`}>إجباري</label>
+
+                                                <div className="col-9 col-md-8 col-lg-2 mt-3 mt-lg-0">
+                                                    {/* 🚀 تصميم أفضل للـ Switch */}
+                                                    <div className="form-check form-switch mb-0 w-100 bg-white border border-light-subtle rounded p-2 d-flex justify-content-between align-items-center shadow-sm" style={{minHeight: '38px'}}>
+                                                        <label className="small fw-bold cursor-pointer mb-0 text-dark" htmlFor={`req-${index}`}>إجباري؟</label>
+                                                        <input 
+                                                            className="form-check-input m-0 cursor-pointer" 
+                                                            type="checkbox" 
+                                                            checked={field.isRequired} 
+                                                            onChange={e => { const t = [...fields]; t[index].isRequired = e.target.checked; setFields(t); }} 
+                                                            id={`req-${index}`} 
+                                                        />
                                                     </div>
                                                 </div>
-                                                <div className="col-2 col-md-1 mt-2 mt-md-0">
-                                                    <button className="btn btn-sm btn-danger w-100 px-1 shadow-sm" title="حذف الحقل" onClick={() => setFields(fields.filter((_, i) => i !== index))}><Trash/></button>
+
+                                                <div className="col-3 col-md-4 col-lg-1 mt-3 mt-lg-0">
+                                                    <button 
+                                                        className="btn btn-danger w-100 shadow-sm d-flex justify-content-center align-items-center" 
+                                                        style={{minHeight: '38px'}}
+                                                        title="حذف الحقل" 
+                                                        onClick={() => setFields(fields.filter((_, i) => i !== index))}
+                                                    >
+                                                        <Trash size={18}/>
+                                                    </button>
                                                 </div>
+
                                             </div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                            {/* إضافة حقل جديد مع ID فريد */}
-                            <button type="button" className="btn btn-outline-primary w-100 py-2 fw-bold mt-3 border-2 border-dashed bg-primary bg-opacity-10" onClick={() => setFields([...fields, { id: crypto.randomUUID(), fieldName: "", isRequired: false, fieldType: "String", presentation: "نص عادي" }])}>
+                            <button type="button" className="btn btn-outline-primary w-100 py-3 fw-bold mt-2 border-2 border-dashed bg-primary bg-opacity-10" onClick={() => setFields([...fields, { id: crypto.randomUUID(), fieldName: "", isRequired: false, fieldType: "String", presentation: "نص عادي" }])}>
                                 <PlusCircle className="ms-2 mb-1" /> إضافة حقل جديد
                             </button>
                         </div>
