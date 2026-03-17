@@ -7,36 +7,35 @@ import {
 import { getImageUrl } from '../../api/axiosConfig';
 import LocationPicker from '../common/LocationPicker';
 
+// 🚀 Senior Fix: إخراج المكون الفرعي للخارج لمنع إعادة البناء وفقدان التركيز (Focus)
+const FieldWrapper = ({ fieldName, isRequired, icon, children }) => (
+    <div className="mb-4 animate-fade-in">
+        <label className="form-label small fw-bold d-flex align-items-center gap-2 text-dark">
+            {icon} {fieldName} 
+            {isRequired && <span className="text-danger" title="مطلوب">*</span>}
+        </label>
+        {children}
+    </div>
+);
+
 const DynamicFieldRenderer = ({ 
-    fieldSchema, // 🚀 تغيير الاسم ليتوافق مع ما أرسلناه في صفحة الـ Create
+    fieldSchema, 
     value, 
     onChange, 
     onFileUpload, 
     onAddressUpdate, 
     uploadingField 
 }) => {
-    // 🚀 التوافقية العكسية إذا تم إرسال 'field' بدلاً من 'fieldSchema'
     const field = fieldSchema || arguments[0].field;
     const { fieldType, fieldName, isRequired, allowedTypes, presentation } = field;
 
-    // 🚀 دالة ذكية لإرسال القيمة للـ Parent (للتوافق مع React Hook Form)
     const handleChange = (val) => {
-        onChange(val); // نرسل القيمة فقط ليتعامل معها الـ Controller
+        onChange(val); 
     };
-
-    const FieldWrapper = ({ children, icon }) => (
-        <div className="mb-4 animate-fade-in">
-            <label className="form-label small fw-bold d-flex align-items-center gap-2 text-dark">
-                {icon} {fieldName} 
-                {isRequired && <span className="text-danger" title="مطلوب">*</span>}
-            </label>
-            {children}
-        </div>
-    );
 
     if (fieldType === 'Bool') {
         return (
-            <FieldWrapper icon={<ToggleOn className="text-success"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<ToggleOn className="text-success"/>}>
                 <div className="form-check form-switch p-0 d-flex align-items-center gap-2 border rounded p-2 bg-light">
                     <input 
                         className="form-check-input ms-0 shadow-none" 
@@ -127,7 +126,7 @@ const DynamicFieldRenderer = ({
 
     if (fieldType === 'Address') {
         return (
-            <FieldWrapper icon={<GeoAltFill className="text-danger"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<GeoAltFill className="text-danger"/>}>
                 <div className="input-group shadow-sm flex-nowrap">
                     <span className="input-group-text bg-white text-muted border-end-0 d-none d-sm-flex"><GeoAltFill /></span>
                     <input 
@@ -142,7 +141,7 @@ const DynamicFieldRenderer = ({
                         <LocationPicker 
                             onLocationSelect={(lat, lng, addr) => {
                                 if(onAddressUpdate) onAddressUpdate(fieldName, lat, lng, addr, handleChange);
-                                else handleChange(JSON.stringify([lat, lng])); // Default fallback
+                                else handleChange(JSON.stringify([lat, lng])); 
                             }} 
                         />
                     </div>
@@ -153,7 +152,7 @@ const DynamicFieldRenderer = ({
 
     if (fieldType === 'Enum') {
         return (
-            <FieldWrapper icon={<Type />}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Type />}>
                 <select 
                     className="form-select shadow-sm" 
                     value={value || ''}
@@ -172,7 +171,7 @@ const DynamicFieldRenderer = ({
 
     if (fieldType === 'DateTime') {
         return (
-            <FieldWrapper icon={<Calendar3 className="text-primary"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Calendar3 className="text-primary"/>}>
                 <input 
                     type="datetime-local" 
                     className="form-control ltr-input"
@@ -185,7 +184,7 @@ const DynamicFieldRenderer = ({
     
     if (fieldType === 'Date') {
         return (
-            <FieldWrapper icon={<Calendar3 className="text-info"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Calendar3 className="text-info"/>}>
                 <input 
                     type="date" 
                     className="form-control ltr-input"
@@ -198,7 +197,7 @@ const DynamicFieldRenderer = ({
     
     if (fieldType === 'Timespan') {
         return (
-            <FieldWrapper icon={<Clock className="text-warning"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Clock className="text-warning"/>}>
                 <input 
                     type="time" 
                     step="1" 
@@ -212,7 +211,7 @@ const DynamicFieldRenderer = ({
 
     if (['Int', 'Long'].includes(fieldType)) {
         return (
-            <FieldWrapper icon={<Hash className="text-dark"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Hash className="text-dark"/>}>
                 <input 
                     type="number" 
                     step="1"
@@ -227,7 +226,7 @@ const DynamicFieldRenderer = ({
     
     if (['Float', 'Decimal'].includes(fieldType)) {
         return (
-            <FieldWrapper icon={<Hash className="text-dark"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Hash className="text-dark"/>}>
                 <input 
                     type="number" 
                     step="any"
@@ -242,7 +241,7 @@ const DynamicFieldRenderer = ({
 
     if (fieldType === 'Email') {
         return (
-            <FieldWrapper icon={<Envelope className="text-secondary"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Envelope className="text-secondary"/>}>
                 <input 
                     type="email" 
                     className="form-control text-start" 
@@ -257,7 +256,7 @@ const DynamicFieldRenderer = ({
     
     if (fieldType === 'PhoneNumber') {
         return (
-            <FieldWrapper icon={<Telephone className="text-success"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Telephone className="text-success"/>}>
                 <input 
                     type="tel" 
                     className="form-control text-start" 
@@ -276,7 +275,7 @@ const DynamicFieldRenderer = ({
             : (value || '');
 
         return (
-            <FieldWrapper icon={<Type className="text-muted"/>}>
+            <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Type className="text-muted"/>}>
                 <textarea 
                     className="form-control font-monospace small" 
                     rows={5}
@@ -291,7 +290,7 @@ const DynamicFieldRenderer = ({
 
     // Default String Fallback
     return (
-        <FieldWrapper icon={<Type className="text-muted"/>}>
+        <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<Type className="text-muted"/>}>
             <input 
                 type="text" 
                 className="form-control"

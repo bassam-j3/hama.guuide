@@ -94,7 +94,7 @@ const PostCreatePage = () => {
         }
     });
 
-    // 🚀 مراقبة قيم الخريطة الحالية لتحديث الدبوس
+    // مراقبة قيم الخريطة الحالية لتحديث واجهة المستخدم
     const currentLat = watch('latitude');
     const currentLng = watch('longitude');
 
@@ -147,7 +147,7 @@ const PostCreatePage = () => {
                     <h3 className="fw-bold mb-1 text-primary">إضافة منشور جديد</h3>
                     <p className="text-muted small mb-0">لخدمة: <span className="fw-bold text-dark">{currentService.title}</span></p>
                 </div>
-                <button className="btn btn-outline-secondary btn-sm px-4" onClick={() => navigate(-1)}>
+                <button type="button" className="btn btn-outline-secondary btn-sm px-4" onClick={() => navigate(-1)}>
                     <ArrowRight className="me-2" /> رجوع
                 </button>
             </div>
@@ -171,22 +171,23 @@ const PostCreatePage = () => {
                                 {errors.title && <div className="invalid-feedback">{errors.title.message}</div>}
                             </div>
                             
-                            {/* 🚀 قسم الخريطة المدمج */}
+                            {/* 🚀 قسم الخريطة: دمج صحيح لمعمارية LocationPicker */}
                             <div className="mb-3">
                                 <label className="form-label small fw-bold"><GeoAlt className="me-1"/> الموقع الجغرافي</label>
-                                <div className="border rounded-3 overflow-hidden shadow-sm" style={{ height: '300px', width: '100%' }}>
+                                <div className="p-3 border rounded-3 bg-light d-flex flex-column gap-2 align-items-start">
                                     <LocationPicker 
-                                        position={{ 
-                                            lat: Number(currentLat) || 35.1325, 
-                                            lng: Number(currentLng) || 36.7515 
-                                        }}
-                                        setPosition={(pos) => {
-                                            setValue('latitude', pos.lat, { shouldValidate: true });
-                                            setValue('longitude', pos.lng, { shouldValidate: true });
-                                        }}
+                                        initialLat={currentLat} 
+                                        initialLng={currentLng} 
+                                        onLocationSelect={(lat, lng, address) => {
+                                            setValue('latitude', lat, { shouldValidate: true });
+                                            setValue('longitude', lng, { shouldValidate: true });
+                                            if (address) toast.success(`تم تحديد الموقع بنجاح`);
+                                        }} 
                                     />
+                                    <div className="small text-muted mt-2">
+                                        {currentLat && currentLng ? `الإحداثيات الحالية: ${Number(currentLat).toFixed(4)} , ${Number(currentLng).toFixed(4)}` : 'لم يتم تحديد موقع بعد'}
+                                    </div>
                                 </div>
-                                {/* حقول مخفية للـ Form Validation */}
                                 <input type="hidden" {...register('latitude')} />
                                 <input type="hidden" {...register('longitude')} />
                                 {(errors.latitude || errors.longitude) && (
@@ -215,14 +216,11 @@ const PostCreatePage = () => {
                                                 <DynamicFieldRenderer 
                                                     fieldSchema={field} 
                                                     value={controllerField.value || ''} 
-                                                    // 🚀 Senior Fix: إجبار الدالة على استلام القيمة وإرسالها بشكل صريح لـ react-hook-form
+                                                    // 🚀 Senior Fix: حماية ضد الأخطاء في إرجاع الـ Events
                                                     onChange={(val) => {
-                                                        // إذا كان الحدث (Event) قادماً من input عادي
                                                         if (val && val.target) {
                                                             controllerField.onChange(val.target.value);
-                                                        } 
-                                                        // إذا كانت القيمة مباشرة (مثل مكونات React Select)
-                                                        else {
+                                                        } else {
                                                             controllerField.onChange(val);
                                                         }
                                                     }} 
