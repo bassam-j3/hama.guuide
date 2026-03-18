@@ -9,25 +9,34 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
         if (level !== null && level !== undefined) params.level = level;
 
         const response = await axiosInstance.get(API_BASE, { params });
-        return Array.isArray(response.data) ? response.data : (response.data?.items || []);
+        const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
+
+        // 🚀 Senior Frontend Shield (الحل السحري)
+        // فلترة صارمة: إذا كان الكائن يحتوي على 'sectionId' فهذا يعني أنه "خدمة" هربت من الباك-إند، فنقوم باستبعادها فوراً!
+        // وإذا كان الباك-إند يرسل 'discriminator'، نستبعد أي شيء لا يساوي 'Section'
+        const cleanSections = rawData.filter(item => {
+            const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
+            return !isService; 
+        });
+
+        return cleanSections;
     } catch (error) {
         if (error.response?.status === 404) return [];
         throw error;
     }
 };
 
-// 🚀 Senior Fix: جلب متكرر آمن 100% يجلب كافة المستويات (Deep Recursion)
 export const fetchAllSections = async () => {
     let allSections = [];
     
     const fetchRecursive = async (parentId) => {
         try {
+            // الدالة هنا ستستدعي fetchSectionsByParent التي تحتوي أصلاً على الدرع الواقي
             const children = await fetchSectionsByParent(parentId);
             if (!children || children.length === 0) return;
             
             allSections.push(...children);
             
-            // استخدام allSettled لضمان استمرار الجلب حتى لو فشل أحد الفروع
             const promises = children.map(child => fetchRecursive(child.id));
             await Promise.allSettled(promises);
         } catch (err) {
@@ -67,14 +76,11 @@ export const updateSection = async (id, sectionData) => {
     return response.data;
 };
 
-// 🚀 Senior Fix: الحذف الجذري المتسلسل (Hard Cascading Delete)
 export const deleteSection = async (id) => {
     try {
-        // 1. جلب وحذف الخدمات المرتبطة بشكل نهائي من قاعدة البيانات!
         const services = await getSectionServices(id);
         if (services && services.length > 0) {
             const deleteServicesPromises = services.map(srv => 
-                // استدعاء مباشر لمسار حذف الخدمة لضمان التدمير الكامل
                 axiosInstance.delete(`/Services/${srv.id}`).catch(err => {
                     if (err.response?.status !== 404) throw err;
                 })
@@ -82,14 +88,12 @@ export const deleteSection = async (id) => {
             await Promise.allSettled(deleteServicesPromises);
         }
 
-        // 2. الحذف المتسلسل للأبناء (أبناء الأبناء سيحذفون خدماتهم وأبناءهم أيضاً)
         const children = await fetchSectionsByParent(id);
         if (children && children.length > 0) {
             const deleteChildrenPromises = children.map(child => deleteSection(child.id));
             await Promise.allSettled(deleteChildrenPromises);
         }
 
-        // 3. حذف القسم نفسه
         const response = await axiosInstance.delete(`${API_BASE}/${id}`);
         return response.data;
     } catch (error) {
