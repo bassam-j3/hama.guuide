@@ -2,34 +2,50 @@ import axiosInstance from '../axiosConfig';
 
 const API_BASE = '/Sections'; 
 
+// جلب أقسام مستوى محدد بأمان شديد
 export const fetchSectionsByParent = async (parentId = null, level = null) => {
     try {
         const params = {};
         if (parentId) params.parentId = parentId;
         if (level !== null && level !== undefined) params.level = level;
-        params._t = new Date().getTime();
 
         const response = await axiosInstance.get(API_BASE, { params });
         return Array.isArray(response.data) ? response.data : (response.data?.items || []);
     } catch (error) {
-        if (error.response && error.response.status === 404) return [];
+        // اصطياد الـ 404 بصمت تام لإيقاف رسائل الكونسول المزعجة
+        if (error.response?.status === 404) return [];
         throw error;
     }
 };
 
+// الدالة الذكية والمحدودة (تمنع الاستدعاء اللانهائي N+1)
 export const fetchAllSections = async () => {
-    const rootSections = await fetchSectionsByParent(null);
-    if (!rootSections || rootSections.length === 0) return [];
+    try {
+        // 1. جلب الجذور
+        const roots = await fetchSectionsByParent(null);
+        if (!roots || roots.length === 0) return [];
 
-    const allSections = [...rootSections];
-    const promises = rootSections.map(sec => fetchSectionsByParent(sec.id));
-    const childrenArrays = await Promise.all(promises);
+        const allSections = [...roots];
 
-    childrenArrays.forEach(children => {
-        if (children && children.length > 0) allSections.push(...children);
-    });
+        // 2. جلب أبناء المستوى الأول فقط بطريقة صامتة لتخفيف الضغط
+        const childPromises = roots.map(root => 
+            axiosInstance.get(API_BASE, { params: { parentId: root.id } })
+                .then(res => Array.isArray(res.data) ? res.data : (res.data?.items || []))
+                .catch(err => {
+                    if (err.response?.status === 404) return []; // صمت
+                    console.warn(`Could not fetch children for ${root.id}`);
+                    return [];
+                })
+        );
 
-    return allSections;
+        const childrenArrays = await Promise.all(childPromises);
+        childrenArrays.forEach(children => allSections.push(...children));
+
+        return allSections;
+    } catch (error) {
+        console.error("Error fetching sections tree:", error);
+        return [];
+    }
 };
 
 export const getSectionById = async (id) => {
@@ -65,43 +81,20 @@ export const deleteSection = async (id) => {
     return response.data;
 };
 
-// 🚀 Senior Fix: حماية ضد الـ 404 عند عدم وجود خدمات
-export const getSectionServices = async (id) => {
-    try {
-        const response = await axiosInstance.get(`${API_BASE}/${id}/services`);
-        return response.data;
-    } catch (error) {
-        if (error.response && error.response.status === 404) return [];
-        throw error;
-    }
-};
-
-export const linkServiceToSection = async (sectionId, serviceId) => {
-    const response = await axiosInstance.put(`${API_BASE}/${sectionId}/services/${serviceId}`);
-    return response.data;
-};
-
-export const removeServiceFromSection = async (serviceId) => {
-    const response = await axiosInstance.delete(`${API_BASE}/services/${serviceId}`);
-    return response.data;
-};
-
 export const assignChildSection = async (parentId, childId) => {
-    if (!parentId || !childId) throw new Error("ParentId and ChildId are required");
+    if (!parentId || !childId) throw new Error("Missing IDs");
     const response = await axiosInstance.put(`${API_BASE}/${parentId}/sections/${childId}`);
     return response.data;
 };
 
 export const removeChildSection = async (parentId, childId) => {
-    if (!parentId || !childId) throw new Error("ParentId and ChildId are required");
+    if (!parentId || !childId) throw new Error("Missing IDs");
     const response = await axiosInstance.delete(`${API_BASE}/${parentId}/sections/${childId}`);
     return response.data;
 };
 
 const sectionService = { 
     fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
-    getSectionServices, linkServiceToSection, removeServiceFromSection, 
     assignChildSection, removeChildSection 
 };
-
 export default sectionService;
