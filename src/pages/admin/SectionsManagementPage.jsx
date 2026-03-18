@@ -5,6 +5,7 @@ import { getImageUrl } from '../../api/axiosConfig';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import TableSkeleton from '../../components/common/TableSkeleton';
 import toast from 'react-hot-toast';
+import { confirmAction } from '../../utils/alerts';
 import { useSections, useDeleteSection, useAssignChildSection, useRemoveChildSection } from '../../hooks/api/useSections';
 
 const SectionsManagementPage = () => {
@@ -19,7 +20,9 @@ const SectionsManagementPage = () => {
     const assignMutation = useAssignChildSection(); 
     const removeMutation = useRemoveChildSection(); 
 
-    const sections = Array.isArray(sectionsData) ? sectionsData : [];
+    // 🚀 Senior Fix: حماية صارمة! استبعاد أي شيء يمتلك `sectionId` لأنه خدمة وليس قسم
+    const sections = Array.isArray(sectionsData) ? sectionsData.filter(s => !s.hasOwnProperty('sectionId')) : [];
+    
     const rootSections = sections.filter(s => !s.parentId);
     const isProcessing = deleteMutation.isPending || assignMutation.isPending || removeMutation.isPending;
 
@@ -27,8 +30,9 @@ const SectionsManagementPage = () => {
         setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    const handleDelete = (id, title) => {
-        if (window.confirm(`⚠️ تحذير: سيتم حذف القسم "${title}" وكافة الخدمات المرتبطة به نهائياً! هل أنت متأكد؟`)) {
+    const handleDelete = async (id, title) => {
+        const confirmed = await confirmAction('حذف القسم', `⚠️ تحذير: سيتم حذف القسم "${title}" وكافة الخدمات المرتبطة به نهائياً! هل أنت متأكد؟`);
+        if (confirmed) {
             const toastId = toast.loading('جاري الحذف الجذري...');
             deleteMutation.mutate(id, {
                 onSuccess: () => toast.success('تم الحذف بنجاح!', { id: toastId }),
@@ -37,27 +41,28 @@ const SectionsManagementPage = () => {
         }
     };
 
-    const handleDrop = (e, targetSection) => {
+    const handleDrop = async (e, targetSection) => {
         e.preventDefault(); 
         setDragOverId(null);
         
         if (!draggedSection || draggedSection.id === targetSection.id) return;
         if (draggedSection.parentId === targetSection.id) return;
         
-        if (window.confirm(`نقل "${draggedSection.title}" تحت "${targetSection.title}"؟`)) {
+        const confirmed = await confirmAction('نقل القسم', `نقل "${draggedSection.title}" تحت "${targetSection.title}"؟`);
+        if (confirmed) {
             assignMutation.mutate({ parentId: targetSection.id, childId: draggedSection.id }, {
                 onError: () => toast.error("الخادم يرفض الربط! تأكد من صحة مسار الـ API مع الباك-إند.")
             });
         }
     };
 
-    const handleRemoveParent = (parentId, childId) => {
-        if (window.confirm('هل تريد فك الارتباط وجعل هذا القسم رئيسياً؟')) {
+    const handleRemoveParent = async (parentId, childId) => {
+        const confirmed = await confirmAction('فك الارتباط', 'هل تريد فك الارتباط وجعل هذا القسم رئيسياً؟');
+        if (confirmed) {
             removeMutation.mutate({ parentId, childId });
         }
     };
 
-    // 🚀 المكون المتكرر (الذي يرسم أبناء الأبناء بشكل لا نهائي)
     const SectionRow = ({ section, level = 0 }) => {
         const children = sections.filter(s => s.parentId === section.id);
         const hasChildren = children.length > 0;
@@ -89,7 +94,7 @@ const SectionsManagementPage = () => {
                             
                             <div className="fw-bold text-dark">
                                 {section.title}
-                                {level > 0 && <span className="badge bg-info bg-opacity-10 text-info ms-2 border border-info border-opacity-25 small">فرعي L{level}</span>}
+                                {level > 0 && <span className="badge bg-info bg-opacity-10 text-info ms-2 border border-info border-opacity-25 small">L{level}</span>}
                             </div>
                         </div>
                     </td>
