@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   fetchAllSections, 
+  fetchSectionsByParent,
   getSectionById,
   createSection,
   updateSection,
@@ -13,11 +14,17 @@ import {
 } from '../../api/services/sectionService';
 import toast from 'react-hot-toast';
 
-// 🚀 Senior Fix: استخدام مفاتيح الكاش بشكل سليم لتحديثها بناءً على البارامترات
 export const useSections = (parentId = null, level = null) => {
   return useQuery({
     queryKey: ['sections', parentId, level],
-    queryFn: () => fetchAllSections(parentId, level),
+    queryFn: () => {
+      // 🚀 إذا طلب الـ UI كل الأقسام (لا يوجد بارامترات)، نستخدم الدالة المتكررة
+      if (parentId === null && level === null) {
+        return fetchAllSections();
+      }
+      // وإلا نجلب مستوى محدد
+      return fetchSectionsByParent(parentId, level);
+    },
   });
 };
 

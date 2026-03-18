@@ -2,17 +2,41 @@ import axiosInstance from '../axiosConfig';
 
 const API_BASE = '/Sections'; 
 
-// 🚀 Senior Fix: استبدال GET /Sections/all (Deprecated) بالمسار القياسي مع البارامترات
-export const fetchAllSections = async (parentId = null, level = null) => {
+// 1. الدالة الأساسية التي تطابق الـ Swagger وتجلب مستوى واحد فقط
+export const fetchSectionsByParent = async (parentId = null, level = null) => {
     const params = {};
     if (parentId) params.parentId = parentId;
     if (level !== null && level !== undefined) params.level = level;
-    
-    // إضافة طابع زمني لمنع الكاش العنيف إن لزم الأمر
     params._t = new Date().getTime();
 
     const response = await axiosInstance.get(API_BASE, { params });
-    return response.data;
+    // التعامل الآمن مع الاستجابة لضمان إرجاع مصفوفة
+    return Array.isArray(response.data) ? response.data : (response.data?.items || []);
+};
+
+// 2. 🚀 Senior Fix: الدالة المتكررة (Recursive) كبديل لـ /all المهجورة
+// هذه الدالة ستقوم بتجميع كافة الأقسام من كافة المستويات وإرجاعها في مصفوفة واحدة
+export const fetchAllSections = async () => {
+    const allSections = [];
+    
+    const fetchRecursive = async (currentParentId = null) => {
+        // جلب الأبناء للأب الحالي
+        const sections = await fetchSectionsByParent(currentParentId);
+        
+        if (!sections || sections.length === 0) return;
+        
+        // إضافة الأقسام المكتشفة إلى المصفوفة الرئيسية
+        allSections.push(...sections);
+        
+        // جلب أبناء هؤلاء الأقسام بشكل متوازٍ (Parallel) لتسريع العملية
+        const promises = sections.map(sec => fetchRecursive(sec.id));
+        await Promise.all(promises);
+    };
+
+    // البدء بجلب الجذور (التي ليس لها أب)
+    await fetchRecursive(null);
+    
+    return allSections;
 };
 
 export const getSectionById = async (id) => {
@@ -74,7 +98,7 @@ export const removeChildSection = async (parentId, childId) => {
 };
 
 const sectionService = { 
-    fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
+    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
     getSectionServices, linkServiceToSection, removeServiceFromSection, 
     assignChildSection, removeChildSection 
 };
