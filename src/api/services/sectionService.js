@@ -16,28 +16,31 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
     }
 };
 
-// 🚀 Senior Fix: جلب لانهائي (Deep Recursion) يجلب كل المستويات
 export const fetchAllSections = async () => {
-    const allSections = [];
-    
-    const fetchRecursive = async (parentId) => {
-        try {
-            const children = await fetchSectionsByParent(parentId);
-            if (!children || children.length === 0) return;
-            
-            allSections.push(...children);
-            
-            // جلب أبناء هؤلاء الأبناء (Recursion)
-            const promises = children.map(child => fetchRecursive(child.id));
-            await Promise.all(promises);
-        } catch (err) {
-            // تجاهل أخطاء الـ 404 بصمت تام
-        }
-    };
+    try {
+        const roots = await fetchSectionsByParent(null);
+        if (!roots || roots.length === 0) return [];
 
-    // البدء من الجذور
-    await fetchRecursive(null);
-    return allSections;
+        const allSections = [...roots];
+
+        const childPromises = roots.map(root => 
+            axiosInstance.get(API_BASE, { params: { parentId: root.id } })
+                .then(res => Array.isArray(res.data) ? res.data : (res.data?.items || []))
+                .catch(err => {
+                    if (err.response?.status === 404) return [];
+                    console.warn(`Could not fetch children for ${root.id}`);
+                    return [];
+                })
+        );
+
+        const childrenArrays = await Promise.all(childPromises);
+        childrenArrays.forEach(children => allSections.push(...children));
+
+        return allSections;
+    } catch (error) {
+        console.error("Error fetching sections tree:", error);
+        return [];
+    }
 };
 
 export const getSectionById = async (id) => {
@@ -68,24 +71,24 @@ export const updateSection = async (id, sectionData) => {
     return response.data;
 };
 
-// 🚀 Senior Fix: الحذف المتسلسل (Cascading Delete) من جهة الفرونت إند
-export const deleteSectionCascade = async (id) => {
+// 🚀 تم إرجاع الاسم إلى deleteSection لكي لا ينكسر الاستيراد في useSections.js
+export const deleteSection = async (id) => {
     try {
-        // 1. جلب وحذف كافة الخدمات المرتبطة بهذا القسم
+        // 1. فك ارتباط الخدمات
         const services = await getSectionServices(id);
         if (services && services.length > 0) {
             const unlinkPromises = services.map(srv => removeServiceFromSection(srv.id));
             await Promise.allSettled(unlinkPromises);
         }
 
-        // 2. جلب وحذف كافة الأبناء (بشكل متكرر)
+        // 2. الحذف المتسلسل للأبناء
         const children = await fetchSectionsByParent(id);
         if (children && children.length > 0) {
-            const deleteChildrenPromises = children.map(child => deleteSectionCascade(child.id));
+            const deleteChildrenPromises = children.map(child => deleteSection(child.id));
             await Promise.allSettled(deleteChildrenPromises);
         }
 
-        // 3. أخيراً، حذف القسم الأب نفسه
+        // 3. حذف القسم
         const response = await axiosInstance.delete(`${API_BASE}/${id}`);
         return response.data;
     } catch (error) {
@@ -126,8 +129,7 @@ export const removeServiceFromSection = async (serviceId) => {
 };
 
 const sectionService = { 
-    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, 
-    deleteSection: deleteSectionCascade, // ربط الحذف بالحذف المتسلسل
+    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
     assignChildSection, removeChildSection, getSectionServices, linkServiceToSection, removeServiceFromSection
 };
 export default sectionService;
