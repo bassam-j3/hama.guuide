@@ -1,119 +1,136 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
-import { PlusLg, PencilSquare, Trash, Folder2Open, ArrowsMove, ArrowUpCircle } from 'react-bootstrap-icons';
-import { getImageUrl } from '../../api/axiosConfig'; 
-import ErrorMessage from '../../components/common/ErrorMessage';
-import TableSkeleton from '../../components/common/TableSkeleton';
-import toast from 'react-hot-toast';
-
-// 🚀 الهوكات وأداة الـ Toast المخصصة
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Pencil, Trash, Tag, Link as LinkIcon, Diagram3 } from 'react-bootstrap-icons';
 import { useSections, useDeleteSection, useAssignChildSection, useRemoveChildSection } from '../../hooks/api/useSections';
 import { confirmAction } from '../../utils/alerts';
+import TableSkeleton from '../../components/common/TableSkeleton';
+import ErrorMessage from '../../components/common/ErrorMessage';
+import { getImageUrl } from '../../api/axiosConfig';
 
 const SectionsManagementPage = () => {
-  const navigate = useNavigate();
-  const { triggerGlobalRefresh } = useOutletContext(); 
+    const navigate = useNavigate();
+    const { data: sections, isLoading, isError } = useSections();
+    const deleteMutation = useDeleteSection();
+    
+    // الهوكات الخاصة بربط الأقسام
+    const assignMutation = useAssignChildSection();
+    const removeChildMutation = useRemoveChildSection();
 
-  const [draggedSection, setDraggedSection] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
+    const [linkParentId, setLinkParentId] = useState('');
+    const [linkChildId, setLinkChildId] = useState('');
 
-  const { data: sectionsData, isLoading, isError } = useSections();
-
-  const deleteMutation = useDeleteSection();
-  const assignMutation = useAssignChildSection(); 
-  const removeMutation = useRemoveChildSection(); 
-
-  const sections = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.items || sectionsData?.data || []);
-
-  const hierarchicalSections = useMemo(() => {
-    const buildHierarchy = (sectionsList, parentId = null, level = 0) => {
-        let result = [];
-        const children = sectionsList.filter(s => s.parentId === parentId);
-        for (const child of children) {
-            result.push({ ...child, level });
-            result = [...result, ...buildHierarchy(sectionsList, child.id, level + 1)];
+    const handleDelete = async (id) => {
+        const confirmed = await confirmAction('حذف القسم', 'هل أنت متأكد من حذف هذا القسم؟ هذه العملية لا يمكن التراجع عنها.');
+        if (confirmed) {
+            deleteMutation.mutate(id);
         }
-        return result;
     };
-    return buildHierarchy(sections);
-  }, [sections]);
 
-  const isProcessing = deleteMutation.isPending || assignMutation.isPending || removeMutation.isPending;
+    // 🚀 Senior Fix: التأكد من إرسال ParentId و ChildId بشكل صحيح
+    const handleAssignChild = () => {
+        if (!linkParentId || !linkChildId) return;
+        if (linkParentId === linkChildId) {
+            alert('لا يمكن للقسم أن يكون أباً لنفسه!');
+            return;
+        }
+        assignMutation.mutate({ parentId: linkParentId, childId: linkChildId });
+    };
 
-  if (isLoading) return <TableSkeleton columns={3} rows={6} />;
+    if (isLoading) return <div className="p-4"><TableSkeleton columns={5} /></div>;
+    if (isError) return <ErrorMessage message="فشل في تحميل الأقسام. يرجى المحاولة لاحقاً." />;
 
-  return (
-    <div className="sections-page animate-fade-in text-end" dir="rtl">
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-        <div>
-          <h3 className="fw-bold mb-1">إدارة الأقسام</h3>
-          <p className="text-muted small">اسحب لترتيب الهيكلية.</p>
+    const safeSections = Array.isArray(sections) ? sections : [];
+
+    return (
+        <div className="sections-management animate-fade-in">
+            <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                <div>
+                    <h3 className="fw-bold mb-1 text-primary">إدارة الأقسام</h3>
+                    <p className="text-muted small mb-0">إدارة الأقسام الرئيسية والفرعية للنظام</p>
+                </div>
+                <button className="btn btn-primary d-flex align-items-center gap-2 shadow-sm px-4" onClick={() => navigate('/admin/sections/create')}>
+                    <Plus size={20} /> <span className="fw-bold">إضافة قسم جديد</span>
+                </button>
+            </div>
+
+            {/* 🚀 قسم تجريبي لربط الأقسام ببعضها */}
+            <div className="card border-0 shadow-sm rounded-4 mb-4">
+                <div className="card-header bg-white p-3 border-bottom d-flex align-items-center gap-2">
+                    <Diagram3 className="text-success" /> <span className="fw-bold text-dark">ربط قسم فرعي بقسم رئيسي</span>
+                </div>
+                <div className="card-body p-3 d-flex gap-2 flex-wrap">
+                    <select className="form-select flex-grow-1" value={linkParentId} onChange={e => setLinkParentId(e.target.value)}>
+                        <option value="">-- اختر القسم الأب --</option>
+                        {safeSections.map(s => <option key={`p_${s.id}`} value={s.id}>{s.title}</option>)}
+                    </select>
+                    <select className="form-select flex-grow-1" value={linkChildId} onChange={e => setLinkChildId(e.target.value)}>
+                        <option value="">-- اختر القسم الابن --</option>
+                        {safeSections.map(s => <option key={`c_${s.id}`} value={s.id}>{s.title}</option>)}
+                    </select>
+                    <button className="btn btn-success d-flex align-items-center gap-2" onClick={handleAssignChild} disabled={assignMutation.isPending || !linkParentId || !linkChildId}>
+                        {assignMutation.isPending ? <span className="spinner-border spinner-border-sm"/> : <LinkIcon />} ربط
+                    </button>
+                </div>
+            </div>
+
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div className="table-responsive">
+                    <table className="table table-hover table-borderless align-middle mb-0 text-center">
+                        <thead className="bg-light text-muted small">
+                            <tr>
+                                <th className="py-3 px-4 rounded-end-3">الصورة</th>
+                                <th className="py-3">العنوان</th>
+                                <th className="py-3">الرابط (Slug)</th>
+                                <th className="py-3">القسم الأب</th>
+                                <th className="py-3 rounded-start-3">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {safeSections.length === 0 ? (
+                                <tr><td colSpan="5" className="text-center py-5 text-muted">لا يوجد أقسام مضافة بعد.</td></tr>
+                            ) : (
+                                safeSections.map((section) => (
+                                    <tr key={section.id} className="border-bottom">
+                                        <td className="py-3 px-4">
+                                            {section.imageUrl ? (
+                                                <img src={getImageUrl(section.imageUrl)} alt={section.title} className="rounded-3 shadow-sm object-fit-cover" style={{ width: '45px', height: '45px' }} />
+                                            ) : (
+                                                <div className="bg-light rounded-3 d-flex justify-content-center align-items-center text-muted" style={{ width: '45px', height: '45px' }}>N/A</div>
+                                            )}
+                                        </td>
+                                        <td className="fw-bold text-dark">{section.title}</td>
+                                        <td><span className="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1"><Tag className="me-1"/>{section.slug}</span></td>
+                                        <td>
+                                            {section.parentId ? (
+                                                <span className="badge bg-info text-dark">فرعي (مربوط)</span>
+                                            ) : (
+                                                <span className="badge bg-primary">رئيسي</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <div className="d-flex justify-content-center gap-2">
+                                                <button className="btn btn-sm btn-light text-primary hover-bg-primary hover-text-white transition-all" onClick={() => navigate(`/admin/sections/edit/${section.id}`)} title="تعديل">
+                                                    <Pencil size={14} />
+                                                </button>
+                                                {section.parentId && (
+                                                    <button className="btn btn-sm btn-light text-warning hover-bg-warning hover-text-white transition-all" onClick={() => removeChildMutation.mutate({ parentId: section.parentId, childId: section.id })} disabled={removeChildMutation.isPending} title="فك الارتباط بالأب">
+                                                        {removeChildMutation.isPending ? <span className="spinner-border spinner-border-sm"/> : <LinkIcon size={14} />}
+                                                    </button>
+                                                )}
+                                                <button className="btn btn-sm btn-light text-danger hover-bg-danger hover-text-white transition-all" onClick={() => handleDelete(section.id)} disabled={deleteMutation.isPending} title="حذف">
+                                                    <Trash size={14} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <button className="btn btn-success btn-sm px-4 shadow-sm" onClick={() => navigate('/admin/sections/create')}>
-          <PlusLg /> إضافة قسم جديد
-        </button>
-      </div>
-
-      {isError && <ErrorMessage message="تعذر جلب الأقسام." />}
-
-      <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead className="bg-light">
-              <tr>
-                <th className="px-4 py-3">القسم (اسحب للترتيب)</th>
-                <th className="py-3 d-none d-lg-table-cell">الوصف</th>
-                <th className="py-3 text-center">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {hierarchicalSections.map((section) => (
-                <tr 
-                  key={section.id} 
-                  draggable={!isProcessing}
-                  onDragStart={(e) => { setDraggedSection(section); e.dataTransfer.effectAllowed = 'move'; }}
-                  onDragOver={(e) => { e.preventDefault(); if(draggedSection?.id !== section.id) setDragOverId(section.id); }}
-                  onDrop={(e) => {
-                      e.preventDefault(); setDragOverId(null);
-                      if (!draggedSection || draggedSection.id === section.id) return;
-                      
-                      // 🚀 استخدام Toast بدلاً من window.confirm للسحب والإفلات
-                      confirmAction(`هل تريد نقل قسم "${draggedSection.title}" ليكون تحت "${section.title}"؟`, () => {
-                          assignMutation.mutate({ parentId: section.id, childId: draggedSection.id });
-                      });
-                  }}
-                  className={dragOverId === section.id ? 'table-active border-primary' : ''}
-                >
-                  <td className="px-4">
-                    <div style={{ marginRight: `${section.level * 30}px` }} className="d-flex align-items-center gap-3">
-                      <ArrowsMove className="text-muted" style={{cursor: 'grab'}} />
-                      <img src={section.imageUrl ? getImageUrl(section.imageUrl) : 'https://via.placeholder.com/45'} className="rounded" style={{ width: '40px', height: '40px', objectFit: 'cover' }} />
-                      <div className="fw-bold">{section.title}</div>
-                    </div>
-                  </td>
-                  <td className="d-none d-lg-table-cell text-muted small">{section.description || '-'}</td>
-                  <td className="text-center px-4">
-                    <div className="d-flex justify-content-center gap-2">
-                      {section.parentId && (
-                        <button className="btn btn-sm btn-light text-warning" onClick={() => confirmAction(`فك ارتباط القسم "${section.title}"؟`, () => removeMutation.mutate({ parentId: section.parentId, childId: section.id }))} disabled={isProcessing}>
-                            {removeMutation.isPending && removeMutation.variables?.childId === section.id ? <span className="spinner-border spinner-border-sm" /> : <ArrowUpCircle />}
-                        </button>
-                      )}
-                      <button className="btn btn-sm btn-light text-primary" onClick={() => navigate(`/admin/sections/edit/${section.id}`)}><PencilSquare /></button>
-                      
-                      {/* 🚀 استخدام Toast بدلاً من window.confirm للحذف */}
-                      <button className="btn btn-sm btn-light text-danger" onClick={() => confirmAction(`هل أنت متأكد من حذف القسم "${section.title}"؟`, () => deleteMutation.mutate(section.id))} disabled={isProcessing}>
-                        {deleteMutation.isPending && deleteMutation.variables === section.id ? <span className="spinner-border spinner-border-sm" /> : <Trash />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
+
 export default SectionsManagementPage;

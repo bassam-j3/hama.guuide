@@ -1,5 +1,6 @@
 import axiosInstance from '../axiosConfig';
 
+// انتبه: Swagger يقول "Sections" بحرف S كبير في البداية
 const API_BASE = '/Sections'; 
 
 export const fetchSectionsByParent = async (parentId = null, level = null) => {
@@ -12,34 +13,33 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
         const response = await axiosInstance.get(API_BASE, { params });
         return Array.isArray(response.data) ? response.data : (response.data?.items || []);
     } catch (error) {
-        // 🚀 Senior Fix: إذا كان الخطأ 404 (لا يوجد أبناء)، نعيد مصفوفة فارغة بصمت
-        // بدلاً من ترك التطبيق ينهار
         if (error.response && error.response.status === 404) {
-            return [];
+            return []; // إرجاع مصفوفة فارغة بصمت إذا لم يكن هناك أبناء
         }
         throw error;
     }
 };
 
+// 🚀 Senior Fix: إيقاف القصف العشوائي للسيرفر.
+// سنجلب المستويات الرئيسية، ثم نجلب أبناءها فقط، ولن نتعمق أكثر لمنع انهيار المتصفح.
 export const fetchAllSections = async () => {
-    const allSections = [];
-    
-    const fetchRecursive = async (currentParentId = null) => {
-        // جلب الأبناء للأب الحالي (آمن الآن ولن ينهار مع 404)
-        const sections = await fetchSectionsByParent(currentParentId);
-        
-        if (!sections || sections.length === 0) return;
-        
-        allSections.push(...sections);
-        
-        // جلب أبناء هؤلاء الأقسام
-        const promises = sections.map(sec => fetchRecursive(sec.id));
-        await Promise.all(promises);
-    };
+    // 1. جلب الجذور (بدون أب)
+    const rootSections = await fetchSectionsByParent(null);
+    if (!rootSections || rootSections.length === 0) return [];
 
-    // البدء بجلب الجذور
-    await fetchRecursive(null);
-    
+    const allSections = [...rootSections];
+
+    // 2. جلب المستوى الأول من الأبناء فقط (مستوى واحد للأسفل) لتوفير الـ N+1 Requests
+    const promises = rootSections.map(sec => fetchSectionsByParent(sec.id));
+    const childrenArrays = await Promise.all(promises);
+
+    // دمج أبناء المستوى الأول في المصفوفة الرئيسية
+    childrenArrays.forEach(children => {
+        if (children && children.length > 0) {
+            allSections.push(...children);
+        }
+    });
+
     return allSections;
 };
 
@@ -91,12 +91,16 @@ export const removeServiceFromSection = async (serviceId) => {
     return response.data;
 };
 
+// 🚀 Senior Fix: مسارات الربط بين الأقسام
 export const assignChildSection = async (parentId, childId) => {
+    if (!parentId || !childId) throw new Error("ParentId and ChildId are required");
+    // مسار الـ Swagger الدقيق هو: /api/Sections/{parentId}/sections/{childId}
     const response = await axiosInstance.put(`${API_BASE}/${parentId}/sections/${childId}`);
     return response.data;
 };
 
 export const removeChildSection = async (parentId, childId) => {
+    if (!parentId || !childId) throw new Error("ParentId and ChildId are required");
     const response = await axiosInstance.delete(`${API_BASE}/${parentId}/sections/${childId}`);
     return response.data;
 };
