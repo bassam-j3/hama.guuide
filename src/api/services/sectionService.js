@@ -16,31 +16,28 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
     }
 };
 
+// 🚀 Senior Fix: جلب لانهائي (Deep Recursion) يجلب كل المستويات
 export const fetchAllSections = async () => {
-    try {
-        const roots = await fetchSectionsByParent(null);
-        if (!roots || roots.length === 0) return [];
+    const allSections = [];
+    
+    const fetchRecursive = async (parentId) => {
+        try {
+            const children = await fetchSectionsByParent(parentId);
+            if (!children || children.length === 0) return;
+            
+            allSections.push(...children);
+            
+            // جلب أبناء هؤلاء الأبناء (Recursion)
+            const promises = children.map(child => fetchRecursive(child.id));
+            await Promise.all(promises);
+        } catch (err) {
+            // تجاهل أخطاء الـ 404 بصمت تام
+        }
+    };
 
-        const allSections = [...roots];
-
-        const childPromises = roots.map(root => 
-            axiosInstance.get(API_BASE, { params: { parentId: root.id } })
-                .then(res => Array.isArray(res.data) ? res.data : (res.data?.items || []))
-                .catch(err => {
-                    if (err.response?.status === 404) return []; 
-                    console.warn(`Could not fetch children for ${root.id}`);
-                    return [];
-                })
-        );
-
-        const childrenArrays = await Promise.all(childPromises);
-        childrenArrays.forEach(children => allSections.push(...children));
-
-        return allSections;
-    } catch (error) {
-        console.error("Error fetching sections tree:", error);
-        return [];
-    }
+    // البدء من الجذور
+    await fetchRecursive(null);
+    return allSections;
 };
 
 export const getSectionById = async (id) => {
@@ -71,9 +68,29 @@ export const updateSection = async (id, sectionData) => {
     return response.data;
 };
 
-export const deleteSection = async (id) => {
-    const response = await axiosInstance.delete(`${API_BASE}/${id}`);
-    return response.data;
+// 🚀 Senior Fix: الحذف المتسلسل (Cascading Delete) من جهة الفرونت إند
+export const deleteSectionCascade = async (id) => {
+    try {
+        // 1. جلب وحذف كافة الخدمات المرتبطة بهذا القسم
+        const services = await getSectionServices(id);
+        if (services && services.length > 0) {
+            const unlinkPromises = services.map(srv => removeServiceFromSection(srv.id));
+            await Promise.allSettled(unlinkPromises);
+        }
+
+        // 2. جلب وحذف كافة الأبناء (بشكل متكرر)
+        const children = await fetchSectionsByParent(id);
+        if (children && children.length > 0) {
+            const deleteChildrenPromises = children.map(child => deleteSectionCascade(child.id));
+            await Promise.allSettled(deleteChildrenPromises);
+        }
+
+        // 3. أخيراً، حذف القسم الأب نفسه
+        const response = await axiosInstance.delete(`${API_BASE}/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
 };
 
 export const assignChildSection = async (parentId, childId) => {
@@ -88,7 +105,6 @@ export const removeChildSection = async (parentId, childId) => {
     return response.data;
 };
 
-// 🚀 تم إرجاع الدوال المفقودة (التي سببت فشل الـ Build)
 export const getSectionServices = async (id) => {
     try {
         const response = await axiosInstance.get(`${API_BASE}/${id}/services`);
@@ -110,8 +126,8 @@ export const removeServiceFromSection = async (serviceId) => {
 };
 
 const sectionService = { 
-    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
-    assignChildSection, removeChildSection,
-    getSectionServices, linkServiceToSection, removeServiceFromSection // 🚀 تم إضافتها للتصدير
+    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, 
+    deleteSection: deleteSectionCascade, // ربط الحذف بالحذف المتسلسل
+    assignChildSection, removeChildSection, getSectionServices, linkServiceToSection, removeServiceFromSection
 };
 export default sectionService;

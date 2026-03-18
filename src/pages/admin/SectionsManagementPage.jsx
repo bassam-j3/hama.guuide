@@ -20,6 +20,7 @@ const SectionsManagementPage = () => {
 
     const sections = Array.isArray(sectionsData) ? sectionsData : [];
 
+    // 🚀 Senior Fix: بناء الشجرة اللانهائية للعرض بدقة
     const hierarchicalSections = useMemo(() => {
         const buildHierarchy = (sectionsList, parentId = null, level = 0) => {
             let result = [];
@@ -35,9 +36,14 @@ const SectionsManagementPage = () => {
 
     const isProcessing = deleteMutation.isPending || assignMutation.isPending || removeMutation.isPending;
 
-    const handleDelete = (id) => {
-        if (window.confirm('هل أنت متأكد من حذف هذا القسم؟')) {
-            deleteMutation.mutate(id);
+    const handleDelete = (id, title) => {
+        // تحذير شديد اللهجة لأن الحذف أصبح متسلسلاً!
+        if (window.confirm(`⚠️ تحذير: هل أنت متأكد من حذف القسم "${title}"؟\nسيتم حذف كافة الأقسام الفرعية التابعة له وكافة الخدمات المرتبطة به بشكل نهائي!`)) {
+            const toastId = toast.loading('جاري الحذف المتسلسل (الرجاء الانتظار)...');
+            deleteMutation.mutate(id, {
+                onSuccess: () => toast.success('تم الحذف بالكامل!', { id: toastId }),
+                onError: () => toast.error('فشل الحذف. حاول مرة أخرى.', { id: toastId })
+            });
         }
     };
 
@@ -50,9 +56,7 @@ const SectionsManagementPage = () => {
         
         if (window.confirm(`هل تريد نقل "${draggedSection.title}" ليكون تحت "${targetSection.title}"؟`)) {
             assignMutation.mutate({ parentId: targetSection.id, childId: draggedSection.id }, {
-                onError: () => {
-                    toast.error("فشل الربط! تأكد أن الباك-إند يدعم هذا المسار.");
-                }
+                onError: () => toast.error("فشل الربط! تأكد أن الباك-إند يدعم هذا المسار.")
             });
         }
     };
@@ -71,7 +75,7 @@ const SectionsManagementPage = () => {
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div>
                     <h3 className="fw-bold mb-1 text-primary">إدارة الأقسام</h3>
-                    <p className="text-muted small mb-0">اسحب القسم وأفلته لترتيب الهيكلية.</p>
+                    <p className="text-muted small mb-0">اسحب القسم وأفلته لترتيب الهيكلية اللانهائية.</p>
                 </div>
                 <button className="btn btn-success btn-sm px-4 shadow-sm" onClick={() => navigate('/admin/sections/create')}>
                     <PlusLg className="me-2"/> إضافة قسم
@@ -103,12 +107,12 @@ const SectionsManagementPage = () => {
                                         className={dragOverId === section.id ? 'table-primary border-primary border-2' : ''}
                                     >
                                         <td className="px-4 py-3">
-                                            <div style={{ marginRight: `${section.level * 35}px` }} className="d-flex align-items-center gap-3">
+                                            <div style={{ marginRight: `${section.level * 40}px` }} className="d-flex align-items-center gap-3">
                                                 <ArrowsMove className={isProcessing ? "text-muted opacity-25" : "text-primary"} style={{ cursor: isProcessing ? 'not-allowed' : 'grab' }} />
                                                 <img src={section.imageUrl ? getImageUrl(section.imageUrl) : 'https://via.placeholder.com/45'} className="rounded-3 shadow-sm object-fit-cover" style={{ width: '45px', height: '45px' }} alt="" />
                                                 <div className="fw-bold text-dark">
                                                     {section.title}
-                                                    {section.parentId && <span className="badge bg-info bg-opacity-10 text-info ms-2 border border-info border-opacity-25 small">فرعي</span>}
+                                                    {section.parentId && <span className="badge bg-info bg-opacity-10 text-info ms-2 border border-info border-opacity-25 small">L{section.level}</span>}
                                                 </div>
                                             </div>
                                         </td>
@@ -123,7 +127,7 @@ const SectionsManagementPage = () => {
                                                 <button className="btn btn-sm btn-light text-primary" onClick={() => navigate(`/admin/sections/edit/${section.id}`)} disabled={isProcessing}>
                                                     <PencilSquare size={15} />
                                                 </button>
-                                                <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(section.id)} disabled={isProcessing}>
+                                                <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(section.id, section.title)} disabled={isProcessing}>
                                                     <Trash size={15} />
                                                 </button>
                                             </div>
