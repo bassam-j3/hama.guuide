@@ -16,7 +16,7 @@ export const getImageUrl = (url) => {
     return url.startsWith('/') ? `${DOMAIN}${url}` : `${DOMAIN}/${url}`;
 };
 
-// إنشاء نسخة Axios لطلبات الـ REST
+// 1. إنشاء نسخة Axios لطلبات الـ REST العادية
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -24,15 +24,19 @@ const axiosInstance = axios.create({
     },
 });
 
-// 🚀 Senior Fix: إزالة /api من الرابط للوصول للـ GraphQL على الدومين الرئيسي
+// 2. إنشاء نسخة Axios لطلبات الـ GraphQL
 const GRAPHQL_DOMAIN = API_BASE_URL.replace(/\/api\/?$/i, '');
-
-// إنشاء نسخة Axios لطلبات الـ GraphQL
 export const graphqlInstance = axios.create({
-    baseURL: `${GRAPHQL_DOMAIN}/graphql`, // سيصبح http://.../graphql
+    baseURL: `${GRAPHQL_DOMAIN}/graphql`, 
     headers: {
         'Content-Type': 'application/json',
     },
+});
+
+// 3. 🚀 إنشاء نسخة Axios مخصصة لرفع الملفات (بدون إجبار Content-Type)
+export const axiosUploadInstance = axios.create({
+    baseURL: API_BASE_URL,
+    // المتصفح سيتكفل تلقائياً بإضافة multipart/form-data مع الـ Boundary
 });
 
 // دالة مساعدة لقراءة كائن الـ Auth من الـ Session Storage
@@ -56,8 +60,10 @@ const requestInterceptor = (config) => {
     return config;
 };
 
+// تطبيق الـ Interceptor على جميع النسخ
 axiosInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
 graphqlInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
+axiosUploadInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error)); // 🚀 تطبيقه هنا لحماية الرفع
 
 // ==========================================
 // 🌟 نظام تجديد الجلسة التلقائي (Refresh Token)
@@ -109,6 +115,7 @@ const responseErrorInterceptor = async (error) => {
             
             axiosInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
             graphqlInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
+            axiosUploadInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`; // 🚀 التحديث هنا أيضاً
 
             processQueue(null, newAuthToken);
 
@@ -127,7 +134,9 @@ const responseErrorInterceptor = async (error) => {
     return Promise.reject(error);
 };
 
+// تطبيق الـ Error Interceptor على جميع النسخ
 axiosInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
 graphqlInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
+axiosUploadInstance.interceptors.response.use((response) => response, responseErrorInterceptor); // 🚀 تطبيق الـ Queue & Refresh على الرفع
 
 export default axiosInstance;
