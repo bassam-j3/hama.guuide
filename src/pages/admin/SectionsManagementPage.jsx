@@ -15,14 +15,13 @@ const SectionsManagementPage = () => {
     const [dragOverId, setDragOverId] = useState(null);
     const [expandedSections, setExpandedSections] = useState({});
 
+    // هذه الهوك الآن ستجلب الأقسام النظيفة بطلب واحد فقط! (بدون 404)
     const { data: sectionsData, isLoading, isError } = useSections();
     const deleteMutation = useDeleteSection();
     const assignMutation = useAssignChildSection(); 
     const removeMutation = useRemoveChildSection(); 
 
-    // 🚀 Senior Fix: حماية صارمة! استبعاد أي شيء يمتلك `sectionId` لأنه خدمة وليس قسم
-    const sections = Array.isArray(sectionsData) ? sectionsData.filter(s => !s.hasOwnProperty('sectionId')) : [];
-    
+    const sections = Array.isArray(sectionsData) ? sectionsData : [];
     const rootSections = sections.filter(s => !s.parentId);
     const isProcessing = deleteMutation.isPending || assignMutation.isPending || removeMutation.isPending;
 
@@ -31,7 +30,7 @@ const SectionsManagementPage = () => {
     };
 
     const handleDelete = async (id, title) => {
-        const confirmed = await confirmAction('حذف القسم', `⚠️ تحذير: سيتم حذف القسم "${title}" وكافة الخدمات المرتبطة به نهائياً! هل أنت متأكد؟`);
+        const confirmed = await confirmAction('حذف القسم', `⚠️ تحذير: سيتم حذف القسم "${title}" وكافة الأقسام والخدمات المرتبطة به نهائياً! هل أنت متأكد؟`);
         if (confirmed) {
             const toastId = toast.loading('جاري الحذف الجذري...');
             deleteMutation.mutate(id, {
@@ -149,7 +148,7 @@ const SectionsManagementPage = () => {
                         </thead>
                         <tbody>
                             {rootSections.length === 0 ? (
-                                <tr><td colSpan="3" className="text-center py-5 text-muted">لا يوجد أقسام رئيسية. أضف قسمك الأول!</td></tr>
+                                <tr><td colSpan="3" className="text-center py-5 text-muted">لا توجد أقسام مطابقة.</td></tr>
                             ) : (
                                 rootSections.map((section) => (
                                     <SectionRow key={section.id} section={section} level={0} />
