@@ -1,76 +1,60 @@
 import axiosInstance from '../axiosConfig';
 
-const API_SERVICES = '/Services';
-const API_SCHEMAS = '/Schemas';
-const API_SECTIONS = '/Sections';
+const API_BASE = '/Services';
 
+/**
+ * جلب كافة الخدمات.
+ * ⚠️ ملاحظة للباك-إند: هذا المسار محدد كـ Deprecated في الـ Swagger، 
+ * ولكن لا يوجد مسار بديل (مثال: مسار يدعم Pagination). يرجى توفير البديل.
+ */
 export const fetchAllServices = async () => {
-    const response = await axiosInstance.get(API_SERVICES);
-    return response.data; // 🚀 فك الغلاف
+    // إضافة طابع زمني لمنع الكاش غير المرغوب فيه
+    const response = await axiosInstance.get(API_BASE, { params: { _t: new Date().getTime() } });
+    return response.data;
 };
 
-export const fetchServiceById = async (id) => {
-    const response = await axiosInstance.get(`${API_SERVICES}/${id}`);
+export const getServiceById = async (id) => {
+    const response = await axiosInstance.get(`${API_BASE}/${id}`);
     return response.data;
 };
 
 export const createService = async (serviceData) => {
+    // 🚀 مطابقة دقيقة لـ AddServiceRequest في الـ Swagger
     const payload = {
         title: serviceData.title,
         slug: serviceData.slug,
         description: serviceData.description || null,
-        imageUrl: serviceData.imageUrl || null,
         sectionId: serviceData.sectionId, 
-        schema: (serviceData.schema || []).map(field => ({
-            fieldName: field.fieldName,
-            isRequired: field.isRequired || false,
-            fieldType: field.fieldType,
-            presentation: field.presentation || "",
-            allowedTypes: []
-        }))
+        imageUrl: serviceData.imageUrl || null,
+        schema: serviceData.schema || [] // المصفوفة اختيارية
     };
-    
-    const response = await axiosInstance.post(API_SERVICES, payload);
+    const response = await axiosInstance.post(API_BASE, payload);
     return response.data;
 };
 
 export const updateService = async (id, serviceData) => {
-    const basicPayload = {
+    // 🚀 مطابقة دقيقة لـ UpdateServiceRequest في الـ Swagger
+    const payload = {
         title: serviceData.title,
         slug: serviceData.slug,
         description: serviceData.description || null,
         imageUrl: serviceData.imageUrl || null
     };
-    
-    await axiosInstance.put(`${API_SERVICES}/${id}`, basicPayload);
-
-    if (serviceData.schema && serviceData.schema.length > 0) {
-        const schemaPayload = {
-            serviceId: id,
-            types: serviceData.schema.map(field => ({
-                fieldName: field.fieldName,
-                isRequired: field.isRequired || false,
-                fieldType: field.fieldType,
-                presentation: field.presentation || "",
-                allowedTypes: []
-            }))
-        };
-        await axiosInstance.post(API_SCHEMAS, schemaPayload).catch(console.warn);
-    }
-
-    if (serviceData.sectionId) {
-        try { await axiosInstance.put(`${API_SECTIONS}/${serviceData.sectionId}/services/${id}`); } catch (e) { console.warn(e); }
-    } else if (serviceData.sectionId === null) {
-        try { await axiosInstance.delete(`${API_SECTIONS}/services/${id}`); } catch (e) { console.warn(e); }
-    }
-
-    return true;
-};
-
-export const deleteService = async (id) => {
-    const response = await axiosInstance.delete(`${API_SERVICES}/${id}`);
+    const response = await axiosInstance.put(`${API_BASE}/${id}`, payload);
     return response.data;
 };
 
-const serviceService = { fetchAllServices, fetchServiceById, createService, updateService, deleteService };
+export const deleteService = async (id) => {
+    const response = await axiosInstance.delete(`${API_BASE}/${id}`);
+    return response.data;
+};
+
+const serviceService = {
+    fetchAllServices,
+    getServiceById,
+    createService,
+    updateService,
+    deleteService
+};
+
 export default serviceService;
