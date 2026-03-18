@@ -13,7 +13,8 @@ export const fetchAllServices = async () => {
     return response.data;
 };
 
-export const getServiceById = async (id) => {
+// 🚀 Senior Fix: إرجاع الاسم الأصلي ليطابق استيرادات الـ UI
+export const fetchServiceById = async (id) => {
     const response = await axiosInstance.get(`${API_BASE}/${id}`);
     return response.data;
 };
@@ -51,7 +52,7 @@ export const deleteService = async (id) => {
 
 const serviceService = {
     fetchAllServices,
-    getServiceById,
+    fetchServiceById, // تم التحديث هنا أيضاً
     createService,
     updateService,
     deleteService

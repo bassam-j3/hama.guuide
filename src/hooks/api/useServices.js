@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchAllServices,
-  getServiceById,
+  fetchServiceById, // 🚀 تحديث الاستيراد
   createService,
   updateService,
   deleteService
@@ -18,7 +18,7 @@ export const useServices = () => {
 export const useService = (id) => {
   return useQuery({
     queryKey: ['service', id],
-    queryFn: () => getServiceById(id),
+    queryFn: () => fetchServiceById(id), // 🚀 تحديث الدالة
     enabled: !!id,
   });
 };
