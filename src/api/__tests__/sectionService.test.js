@@ -16,19 +16,19 @@ describe('sectionService API', () => {
         vi.clearAllMocks();
     });
 
-    it('fetchAllSections fetches flat list without recursion', async () => {
+    it('fetchAllSections fetches flat list using /all and shields services', async () => {
         const mockData = [
             { id: '1', title: 'Section 1' },
-            { id: '2', title: 'Service hiding as section', sectionId: '123' } 
+            { id: '2', title: 'Service hiding as section', sectionId: '123' }
         ];
 
         axiosInstance.get.mockResolvedValueOnce({ data: mockData });
 
         const sections = await sectionService.fetchAllSections();
 
-        expect(axiosInstance.get).toHaveBeenCalledWith('/Sections?level=0');
-        expect(axiosInstance.get).toHaveBeenCalledTimes(1); 
-        expect(sections).toHaveLength(1); 
+        expect(axiosInstance.get).toHaveBeenCalledWith('/Sections/all');
+        expect(axiosInstance.get).toHaveBeenCalledTimes(1);
+        expect(sections).toHaveLength(1);
         expect(sections[0].id).toBe('1');
     });
 

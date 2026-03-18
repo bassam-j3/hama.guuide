@@ -1,41 +1,34 @@
 import axiosInstance from '../axiosConfig';
 
-const API_BASE = '/Sections'; 
+const API_BASE = '/Sections';
 
 export const fetchAllSections = async () => {
-    try {
-        const response = await axiosInstance.get(`${API_BASE}?level=0`);
-        const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
+    // Uses /all to get flat list safely without triggering 400 Bad Request
+    const response = await axiosInstance.get(`${API_BASE}/all`);
+    const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
 
-        const cleanSections = rawData.filter(item => {
-            const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
-            return !isService; 
-        });
+    const cleanSections = rawData.filter(item => {
+        const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
+        return !isService;
+    });
 
-        return cleanSections;
-    } catch (error) {
-        throw error;
-    }
+    return cleanSections;
 };
 
 export const fetchSectionsByParent = async (parentId = null, level = null) => {
-    try {
-        const params = {};
-        if (parentId) params.parentId = parentId;
-        if (level !== null && level !== undefined) params.level = level;
+    const params = {};
+    if (parentId) params.parentId = parentId;
+    if (level !== null && level !== undefined) params.level = level;
 
-        const response = await axiosInstance.get(API_BASE, { params });
-        const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
+    const response = await axiosInstance.get(API_BASE, { params });
+    const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
 
-        const cleanSections = rawData.filter(item => {
-            const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
-            return !isService; 
-        });
+    const cleanSections = rawData.filter(item => {
+        const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
+        return !isService;
+    });
 
-        return cleanSections;
-    } catch (error) {
-        throw error;
-    }
+    return cleanSections;
 };
 
 export const getSectionById = async (id) => {
@@ -84,12 +77,8 @@ export const removeChildSection = async (parentId, childId) => {
 };
 
 export const getSectionServices = async (id) => {
-    try {
-        const response = await axiosInstance.get(`${API_BASE}/${id}/services`);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(`${API_BASE}/${id}/services`);
+    return response.data;
 };
 
 export const linkServiceToSection = async (sectionId, serviceId) => {
@@ -98,12 +87,12 @@ export const linkServiceToSection = async (sectionId, serviceId) => {
 };
 
 export const removeServiceFromSection = async (serviceId) => {
-    const response = await axiosInstance.delete(`${API_BASE}/services/${serviceId}`);
+    const response = await axiosInstance.delete(`/Services/${serviceId}`);
     return response.data;
 };
 
-const sectionService = { 
-    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
+const sectionService = {
+    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection,
     assignChildSection, removeChildSection, getSectionServices, linkServiceToSection, removeServiceFromSection
 };
 

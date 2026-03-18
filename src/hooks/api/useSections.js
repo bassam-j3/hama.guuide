@@ -12,7 +12,7 @@ export const useSections = (parentId = null, level = null) => {
             }
             return sectionService.fetchSectionsByParent(parentId, level);
         },
-        staleTime: 5 * 60 * 1000, 
+        staleTime: 5 * 60 * 1000,
     });
 };
 
@@ -38,7 +38,11 @@ export const useCreateSection = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: sectionService.createSection,
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sections'] }),
+        onSuccess: () => {
+            toast.success('تم إضافة القسم بنجاح');
+            queryClient.invalidateQueries({ queryKey: ['sections'] });
+        },
+        onError: () => toast.error('فشل في إضافة القسم. تأكد من صحة البيانات.')
     });
 };
 
@@ -47,9 +51,11 @@ export const useUpdateSection = () => {
     return useMutation({
         mutationFn: ({ id, data }) => sectionService.updateSection(id, data),
         onSuccess: (_, variables) => {
+            toast.success('تم تحديث القسم بنجاح');
             queryClient.invalidateQueries({ queryKey: ['sections'] });
             queryClient.invalidateQueries({ queryKey: ['section', variables.id] });
         },
+        onError: () => toast.error('فشل في تحديث القسم.')
     });
 };
 
@@ -105,7 +111,7 @@ export const useLinkServiceToSection = () => {
         onSuccess: (_, variables) => {
             toast.success('تم ربط الخدمة بالقسم بنجاح!');
             queryClient.invalidateQueries({ queryKey: ['section-services', variables.sectionId] });
-            queryClient.invalidateQueries({ queryKey: ['services'] }); 
+            queryClient.invalidateQueries({ queryKey: ['services'] });
         },
         onError: () => toast.error('فشل ربط الخدمة. تأكد من البيانات.')
     });
