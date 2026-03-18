@@ -2,25 +2,6 @@ import axiosInstance from '../axiosConfig';
 
 const API_BASE = '/Sections'; 
 
-export const fetchAllSections = async () => {
-    try {
-        // 🚀 Senior Fix: استدعاء واحد فقط يجلب كل شيء! لا مزيد من استدعاءات الأبناء المزعجة ولا مزيد من الـ 404!
-        const response = await axiosInstance.get(API_BASE);
-        const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
-
-        // 🚀 الدرع الواقي: طرد الخدمات من الأقسام
-        const cleanSections = rawData.filter(item => {
-            const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
-            return !isService; 
-        });
-
-        return cleanSections;
-    } catch (error) {
-        console.error("Error fetching sections:", error);
-        return [];
-    }
-};
-
 export const fetchSectionsByParent = async (parentId = null, level = null) => {
     try {
         const params = {};
@@ -30,6 +11,7 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
         const response = await axiosInstance.get(API_BASE, { params });
         const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
 
+        // 🚀 Senior Frontend Shield: طرد الخدمات من الأقسام
         const cleanSections = rawData.filter(item => {
             const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
             return !isService; 
@@ -37,9 +19,35 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
 
         return cleanSections;
     } catch (error) {
+        // اصطياد الـ 404 بأمان (ستظهر في الكونسول ولكن لن تكسر التطبيق)
         if (error.response?.status === 404) return [];
         throw error;
     }
+};
+
+// 🚀 Senior Fix: إرجاع الجلب اللانهائي لضمان ظهور الأقسام الفرعية (Children of Sections)
+export const fetchAllSections = async () => {
+    let allSections = [];
+    
+    const fetchRecursive = async (parentId) => {
+        try {
+            // الدالة هنا ستستدعي fetchSectionsByParent التي تحتوي أصلاً على الدرع الواقي
+            const children = await fetchSectionsByParent(parentId);
+            if (!children || children.length === 0) return;
+            
+            allSections.push(...children);
+            
+            // جلب أبناء الأبناء
+            const promises = children.map(child => fetchRecursive(child.id));
+            await Promise.allSettled(promises);
+        } catch (err) {
+            console.error("Recursion error for parent:", parentId);
+        }
+    };
+
+    // البدء من الجذور (parentId = null)
+    await fetchRecursive(null);
+    return allSections;
 };
 
 export const getSectionById = async (id) => {

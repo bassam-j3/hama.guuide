@@ -17,14 +17,17 @@ describe('sectionService API', () => {
         vi.clearAllMocks();
     });
 
-    it('fetchAllSections يجب أن يجلب الأقسام بطلب واحد فقط ويطرد الخدمات المتخفية كأقسام', async () => {
-        // محاكاة استجابة الباك-إند ببيانات مختلطة (قسم حقيقي + خدمة متخفية)
-        const mockData = [
-            { id: 'section1', title: 'Real Section' }, // قسم صحيح
-            { id: 'service1', title: 'Fake Section', sectionId: 'some-id' } // خدمة متخفية (تمتلك sectionId)
-        ];
+    it('fetchAllSections يجب أن يطرد الخدمات المتخفية ويجلب الأبناء بشكل متكرر', async () => {
+        // 1. محاكاة استجابة الجذور (مستوى 0): قسم صحيح + خدمة متخفية
+        axiosInstance.get.mockResolvedValueOnce({ 
+            data: [
+                { id: 'section1', title: 'Real Section' }, // قسم صحيح
+                { id: 'service1', title: 'Fake Section', sectionId: 'some-id' } // خدمة متخفية
+            ] 
+        });
         
-        axiosInstance.get.mockResolvedValueOnce({ data: mockData });
+        // 2. محاكاة استجابة البحث عن أبناء section1 (لا يوجد أبناء)
+        axiosInstance.get.mockResolvedValueOnce({ data: [] });
 
         const sections = await sectionService.fetchAllSections();
         
@@ -32,8 +35,8 @@ describe('sectionService API', () => {
         expect(sections).toHaveLength(1);
         expect(sections[0].id).toBe('section1');
         
-        // التحقق من الأداء: يجب أن يكون استدعاء الشبكة مرة واحدة فقط (وداعاً للـ 404!)
-        expect(axiosInstance.get).toHaveBeenCalledTimes(1);
+        // التحقق من الاستدعاءات: استدعاء للجذور + استدعاء للبحث عن أبناء section1 = 2
+        expect(axiosInstance.get).toHaveBeenCalledTimes(2);
     });
 
     it('assignChildSection يجب أن يشكل المسار الصحيح', async () => {
