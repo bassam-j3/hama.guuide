@@ -7,6 +7,7 @@ import TableSkeleton from '../../components/common/TableSkeleton';
 import toast from 'react-hot-toast';
 import { confirmAction } from '../../utils/alerts';
 import { useSections, useDeleteSection, useAssignChildSection, useRemoveChildSection } from '../../hooks/api/useSections';
+import { useServices } from '../../hooks/api/useServices'; // 🚀 استيراد الخدمات للمقاطعة
 
 const SectionsManagementPage = () => {
     const navigate = useNavigate();
@@ -15,13 +16,24 @@ const SectionsManagementPage = () => {
     const [dragOverId, setDragOverId] = useState(null);
     const [expandedSections, setExpandedSections] = useState({});
 
-    // هذه الهوك الآن ستجلب الأقسام النظيفة بطلب واحد فقط! (بدون 404)
+    // جلب الأقسام والخدمات
     const { data: sectionsData, isLoading, isError } = useSections();
+    const { data: servicesData } = useServices(); // 🚀 جلب الخدمات لاستخدام الـ IDs كدرع
+
     const deleteMutation = useDeleteSection();
     const assignMutation = useAssignChildSection(); 
     const removeMutation = useRemoveChildSection(); 
 
-    const sections = Array.isArray(sectionsData) ? sectionsData : [];
+    // 🚀 The Ultimate Shield (الدرع المطلق): مقاطعة الـ IDs
+    // 1. استخراج كل الـ IDs الخاصة بالخدمات الحقيقية
+    const rawServices = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
+    const serviceIds = new Set(rawServices.map(srv => srv.id));
+
+    // 2. تدمير أي قسم يمتلك ID موجود في قائمة الخدمات! (مستحيل أن تتسرب خدمة الآن)
+    const sections = Array.isArray(sectionsData) 
+        ? sectionsData.filter(s => !serviceIds.has(s.id)) 
+        : [];
+    
     const rootSections = sections.filter(s => !s.parentId);
     const isProcessing = deleteMutation.isPending || assignMutation.isPending || removeMutation.isPending;
 
@@ -30,7 +42,7 @@ const SectionsManagementPage = () => {
     };
 
     const handleDelete = async (id, title) => {
-        const confirmed = await confirmAction('حذف القسم', `⚠️ تحذير: سيتم حذف القسم "${title}" وكافة الأقسام والخدمات المرتبطة به نهائياً! هل أنت متأكد؟`);
+        const confirmed = await confirmAction('حذف القسم', `⚠️ تحذير: سيتم حذف القسم "${title}" وكافة الأقسام الفرعية التابعة له نهائياً! هل أنت متأكد؟`);
         if (confirmed) {
             const toastId = toast.loading('جاري الحذف الجذري...');
             deleteMutation.mutate(id, {
@@ -148,7 +160,7 @@ const SectionsManagementPage = () => {
                         </thead>
                         <tbody>
                             {rootSections.length === 0 ? (
-                                <tr><td colSpan="3" className="text-center py-5 text-muted">لا توجد أقسام مطابقة.</td></tr>
+                                <tr><td colSpan="3" className="text-center py-5 text-muted">لا يوجد أقسام رئيسية. أضف قسمك الأول!</td></tr>
                             ) : (
                                 rootSections.map((section) => (
                                     <SectionRow key={section.id} section={section} level={0} />
