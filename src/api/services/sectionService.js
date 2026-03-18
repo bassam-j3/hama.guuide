@@ -2,7 +2,6 @@ import axiosInstance from '../axiosConfig';
 
 const API_BASE = '/Sections'; 
 
-// جلب أقسام مستوى محدد بأمان شديد
 export const fetchSectionsByParent = async (parentId = null, level = null) => {
     try {
         const params = {};
@@ -12,27 +11,23 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
         const response = await axiosInstance.get(API_BASE, { params });
         return Array.isArray(response.data) ? response.data : (response.data?.items || []);
     } catch (error) {
-        // اصطياد الـ 404 بصمت تام لإيقاف رسائل الكونسول المزعجة
         if (error.response?.status === 404) return [];
         throw error;
     }
 };
 
-// الدالة الذكية والمحدودة (تمنع الاستدعاء اللانهائي N+1)
 export const fetchAllSections = async () => {
     try {
-        // 1. جلب الجذور
         const roots = await fetchSectionsByParent(null);
         if (!roots || roots.length === 0) return [];
 
         const allSections = [...roots];
 
-        // 2. جلب أبناء المستوى الأول فقط بطريقة صامتة لتخفيف الضغط
         const childPromises = roots.map(root => 
             axiosInstance.get(API_BASE, { params: { parentId: root.id } })
                 .then(res => Array.isArray(res.data) ? res.data : (res.data?.items || []))
                 .catch(err => {
-                    if (err.response?.status === 404) return []; // صمت
+                    if (err.response?.status === 404) return []; 
                     console.warn(`Could not fetch children for ${root.id}`);
                     return [];
                 })
@@ -93,8 +88,30 @@ export const removeChildSection = async (parentId, childId) => {
     return response.data;
 };
 
+// 🚀 تم إرجاع الدوال المفقودة (التي سببت فشل الـ Build)
+export const getSectionServices = async (id) => {
+    try {
+        const response = await axiosInstance.get(`${API_BASE}/${id}/services`);
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 404) return [];
+        throw error;
+    }
+};
+
+export const linkServiceToSection = async (sectionId, serviceId) => {
+    const response = await axiosInstance.put(`${API_BASE}/${sectionId}/services/${serviceId}`);
+    return response.data;
+};
+
+export const removeServiceFromSection = async (serviceId) => {
+    const response = await axiosInstance.delete(`${API_BASE}/services/${serviceId}`);
+    return response.data;
+};
+
 const sectionService = { 
     fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
-    assignChildSection, removeChildSection 
+    assignChildSection, removeChildSection,
+    getSectionServices, linkServiceToSection, removeServiceFromSection // 🚀 تم إضافتها للتصدير
 };
 export default sectionService;
