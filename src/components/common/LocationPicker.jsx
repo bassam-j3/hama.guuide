@@ -8,8 +8,13 @@ import { GeoAltFill, Map as MapIcon } from 'react-bootstrap-icons';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-let DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
-L.Marker.prototype.options.icon = DefaultIcon;
+// 🚀 Senior Fix: إزالة التعديل العالمي (Prototype Mutation) وتمرير الأيقونة بشكل محلي
+const customIcon = new L.Icon({ 
+    iconUrl: icon, 
+    shadowUrl: iconShadow, 
+    iconSize: [25, 41], 
+    iconAnchor: [12, 41] 
+});
 
 const LocationMarker = ({ position, setPosition, setAddress }) => {
     const map = useMapEvents({
@@ -23,8 +28,17 @@ const LocationMarker = ({ position, setPosition, setAddress }) => {
             } catch (error) { setAddress("Coordinates selected"); }
         },
     });
-    useEffect(() => { if (position) map.flyTo(position, map.getZoom()); }, [position, map]);
-    return position === null ? null : <Marker position={position}><Popup>الموقع المحدد</Popup></Marker>;
+    
+    useEffect(() => { 
+        if (position) map.flyTo(position, map.getZoom()); 
+    }, [position, map]);
+
+    // 🚀 تمرير customIcon بشكل مباشر هنا فقط
+    return position === null ? null : (
+        <Marker position={position} icon={customIcon}>
+            <Popup>الموقع المحدد</Popup>
+        </Marker>
+    );
 };
 
 const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
@@ -34,11 +48,18 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
 
     useEffect(() => {
         if (initialLat && initialLng && !isNaN(initialLat) && !isNaN(initialLng)) {
-            if (parseFloat(initialLat) !== 0 || parseFloat(initialLng) !== 0) setPosition({ lat: parseFloat(initialLat), lng: parseFloat(initialLng) });
+            if (parseFloat(initialLat) !== 0 || parseFloat(initialLng) !== 0) {
+                setPosition({ lat: parseFloat(initialLat), lng: parseFloat(initialLng) });
+            }
         }
     }, [initialLat, initialLng]);
 
-    const handleConfirm = () => { if (position) { onLocationSelect(position.lat, position.lng, address); setShow(false); } };
+    const handleConfirm = () => { 
+        if (position) { 
+            onLocationSelect(position.lat, position.lng, address); 
+            setShow(false); 
+        } 
+    };
 
     return (
         <>
@@ -46,11 +67,9 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
                 <MapIcon /> {position ? "تغيير الموقع" : "تحديد على الخريطة"}
             </button>
 
-            {/* 🚀 متجاوب: modal-fullscreen-md-down يجعله ملء الشاشة في الجوال فقط */}
             <Modal show={show} onHide={() => setShow(false)} size="lg" centered className="modal-fullscreen-md-down">
                 <Modal.Header closeButton><Modal.Title className="fs-6 fw-bold">اختر الموقع</Modal.Title></Modal.Header>
                 <Modal.Body className="p-0 d-flex flex-column">
-                    {/* 🚀 متجاوب: ارتفاع الخريطة نسبة من الشاشة لتناسب الجوالات */}
                     <div style={{ height: "60vh", minHeight:"300px", width: "100%", position: 'relative' }}>
                         <MapContainer center={position || [35.1318, 36.7578]} zoom={14} style={{ height: "100%", width: "100%", zIndex: 1 }}>
                             <LayersControl position="topright">
@@ -79,4 +98,5 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
         </>
     );
 };
+
 export default LocationPicker;
