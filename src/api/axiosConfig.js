@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { getAuthData, setAuthData, clearAuthData } from './services/tokenService'; // 🚀 استيراد الخدمة الجديدة
+import { getAuthData, setAuthData, clearAuthData } from './services/tokenService';
+import { authEvents } from '../utils/authEvents';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -34,7 +35,7 @@ export const axiosUploadInstance = axios.create({
 // 🌟 نظام اعتراض الطلبات (Request Interceptor)
 // ==========================================
 const requestInterceptor = (config) => {
-    const authData = getAuthData(); // 🚀 استدعاء فائق السرعة من الذاكرة (O(1))
+    const authData = getAuthData(); 
     if (authData && authData.access_token) {
         config.headers.Authorization = `Bearer ${authData.access_token}`;
     }
@@ -73,7 +74,7 @@ const responseErrorInterceptor = async (error) => {
         }
 
         originalRequest._retry = true;
-        isRefreshing = true;
+        isRefreshing = true; // Synchronous lock to prevent race conditions
 
         try {
             const authData = getAuthData();
@@ -89,7 +90,7 @@ const responseErrorInterceptor = async (error) => {
                 access_token: newAuthToken
             };
             
-            setAuthData(updatedAuthData); // 🚀 حفظ التوكن الجديد مركزياً
+            setAuthData(updatedAuthData); 
             
             axiosInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
             graphqlInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
@@ -102,8 +103,8 @@ const responseErrorInterceptor = async (error) => {
 
         } catch (refreshError) {
             processQueue(refreshError, null);
-            clearAuthData(); // 🚀 مسح الجلسة مركزياً
-            window.location.href = '/login';
+            clearAuthData(); 
+            authEvents.emit('logout'); // 🚀 Emits event smoothly instead of window.location crash
             return Promise.reject(refreshError);
         } finally {
             isRefreshing = false;
