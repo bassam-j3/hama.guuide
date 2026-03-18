@@ -3,7 +3,6 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Save, ArrowRight, InfoCircle, Image as ImageIcon, GeoAltFill } from "react-bootstrap-icons";
 import toast from 'react-hot-toast'; 
 
@@ -12,6 +11,7 @@ import { getPostById, updatePostREST } from "../../api/services/postService";
 import schemaService from '../../api/services/schemaService';
 import { uploadFile } from "../../api/services/fileService";
 import { getImageUrl } from "../../api/axiosConfig";
+import { buildDynamicSchema, generateDefaultPayload } from '../../utils/schemaBuilder'; // 🚀 استيراد اللوجيك
 
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
@@ -28,21 +28,16 @@ const PostEditPage = () => {
     const [uploadingField, setUploadingField] = useState(null);
     const [previewImage, setPreviewImage] = useState('');
 
-    // 1. جلب الخدمات والبوست في نفس الوقت
     const { data: initialData, isLoading: loadingInitial, isError: errorInitial } = useQuery({
         queryKey: ['post-edit', serviceSlug, postId],
         queryFn: async () => {
-            const [services, post] = await Promise.all([
-                fetchAllServices(),
-                getPostById(serviceSlug, postId)
-            ]);
+            const [services, post] = await Promise.all([fetchAllServices(), getPostById(serviceSlug, postId)]);
             const service = services.find(s => s.slug === serviceSlug);
             if (!service) throw new Error("الخدمة غير موجودة");
             return { service, post };
         }
     });
 
-    // 2. جلب المخطط (Schema)
     const { data: schemaData, isLoading: loadingSchema } = useQuery({
         queryKey: ['schema', initialData?.service?.id],
         queryFn: () => schemaService.getSchemaByService(initialData.service.id),
@@ -51,75 +46,28 @@ const PostEditPage = () => {
 
     const schemaFields = Array.isArray(schemaData) ? schemaData : (schemaData?.schema || schemaData || []);
 
-    // 3. بناء Zod Schema
-    const dynamicZodSchema = useMemo(() => {
-        const payloadShape = {};
-        schemaFields.forEach(field => {
-            let fieldValidator = z.any();
-            if (field.fieldType === 'String' || field.fieldType === 'Email' || field.fieldType === 'PhoneNumber') {
-                fieldValidator = z.string();
-                if (field.isRequired) fieldValidator = fieldValidator.min(1, 'هذا الحقل مطلوب');
-                else fieldValidator = fieldValidator.optional().or(z.literal(''));
-            } 
-            else if (field.fieldType === 'Int' || field.fieldType === 'Float' || field.fieldType === 'Decimal') {
-                fieldValidator = z.preprocess((val) => (val === '' || val === undefined || val === null ? undefined : Number(val)), 
-                    field.isRequired ? z.number({ invalid_type_error: 'رقم غير صالح' }) : z.number().optional()
-                );
-            } 
-            else if (field.fieldType === 'Bool') {
-                fieldValidator = z.boolean().optional();
-            }
-            else {
-                fieldValidator = field.isRequired ? z.string().min(1, 'مطلوب') : z.any().optional();
-            }
+    // 🚀 استخدام المساعد الخارجي هنا أيضاً
+    const dynamicZodSchema = useMemo(() => buildDynamicSchema(schemaFields), [schemaFields]);
 
-            payloadShape[field.fieldName] = fieldValidator;
-        });
-
-        return z.object({
-            title: z.string().min(3, 'العنوان يجب أن يكون 3 أحرف على الأقل'),
-            imageUrl: z.string().optional().or(z.literal('')),
-            latitude: z.preprocess((val) => (val ? Number(val) : undefined), z.number().optional()),
-            longitude: z.preprocess((val) => (val ? Number(val) : undefined), z.number().optional()),
-            payload: z.object(payloadShape)
-        });
-    }, [schemaFields]);
-
-    // 4. إعداد React Hook Form
     const { register, handleSubmit, control, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm({
         resolver: zodResolver(dynamicZodSchema),
-        defaultValues: {
-            title: '',
-            imageUrl: '',
-            latitude: 0,
-            longitude: 0,
-            payload: {}
-        }
+        defaultValues: { title: '', imageUrl: '', latitude: 0, longitude: 0, payload: {} }
     });
 
-    // 🚀 مراقبة الإحداثيات لرسم الخريطة بطريقة صحيحة بدون تداخلات
     const currentLat = watch('latitude');
     const currentLng = watch('longitude');
 
-    // تعبئة الفورم بالبيانات القديمة
+    // 🚀 استخدام `generateDefaultPayload` لتنظيف الكود
     useEffect(() => {
         if (initialData?.post && schemaFields.length >= 0) {
             const p = initialData.post;
-            
-            const initialPayload = {};
-            schemaFields.forEach(field => {
-                const existingValue = p.payload ? p.payload[field.fieldName] : undefined;
-                initialPayload[field.fieldName] = existingValue !== undefined ? existingValue : (field.fieldType === 'Bool' ? false : "");
-            });
-
             reset({
                 title: p.title || '',
                 imageUrl: p.imageUrl || '',
                 latitude: p.latitude || 35.1325,
                 longitude: p.longitude || 36.7515,
-                payload: initialPayload
+                payload: generateDefaultPayload(schemaFields, p.payload || {})
             });
-
             if (p.imageUrl) setPreviewImage(getImageUrl(p.imageUrl));
         }
     }, [initialData, schemaFields, reset]);
@@ -130,14 +78,10 @@ const PostEditPage = () => {
         const toastId = toast.loading('جاري رفع الملف...'); 
         try {
             const res = await uploadFile(file);
-            const url = res.fileUrl || res;
-            formOnChange(url); 
+            formOnChange(res.fileUrl || res); 
             toast.success('تم رفع الملف بنجاح', { id: toastId }); 
-        } catch {
-            toast.error('فشل الرفع.', { id: toastId }); 
-        } finally {
-            setUploadingField(null);
-        }
+        } catch { toast.error('فشل الرفع.', { id: toastId }); } 
+        finally { setUploadingField(null); }
     };
 
     const handleMainImageUpload = async (e) => {
@@ -151,11 +95,8 @@ const PostEditPage = () => {
             setValue('imageUrl', url, { shouldValidate: true }); 
             setPreviewImage(getImageUrl(url));
             toast.success('تم الرفع!', { id: toastId });
-        } catch {
-            toast.error('فشل الرفع!', { id: toastId });
-        } finally {
-            setUploading(false);
-        }
+        } catch { toast.error('فشل الرفع!', { id: toastId }); } 
+        finally { setUploading(false); }
     };
 
     const updateMutation = useMutation({
@@ -167,23 +108,15 @@ const PostEditPage = () => {
             setTimeout(() => navigate(`/admin/services/${serviceSlug}/posts`), 1000);
         },
         onError: (err) => {
-            // إذا كان الخطأ 500 فهذا من السيرفر
-            const status = err.response?.status;
-            if (status === 500) {
-                toast.error("خطأ 500: انهيار في السيرفر الداخلي (الرجاء مراجعة الباك-إند)");
-            } else {
-                const errorMsg = err.response?.data?.Errors?.[0]?.description || err.response?.data?.detail || "فشل التحديث.";
-                toast.error(errorMsg);
-            }
+            if (err.response?.status === 500) toast.error("خطأ 500: انهيار في السيرفر الداخلي (الرجاء مراجعة الباك-إند)");
+            else toast.error(err.response?.data?.Errors?.[0]?.description || err.response?.data?.detail || "فشل التحديث.");
         }
     });
 
     const onSubmit = (data) => {
         const finalData = { ...data };
-        // حماية أخيرة قبل الإرسال للسيرفر
         finalData.latitude = parseFloat(finalData.latitude) || 0;
         finalData.longitude = parseFloat(finalData.longitude) || 0;
-        
         updateMutation.mutate(finalData);
     };
 
@@ -193,13 +126,8 @@ const PostEditPage = () => {
     return (
         <div className="post-edit animate-fade-in text-end" dir="rtl">
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                <div>
-                    <h3 className="fw-bold mb-1 text-primary">تعديل المحتوى</h3>
-                    <p className="text-muted small mb-0">لخدمة: <span className="fw-bold text-dark">{initialData?.service?.title}</span></p>
-                </div>
-                <button type="button" className="btn btn-outline-secondary btn-sm w-100 w-md-auto" onClick={() => navigate(-1)}>
-                    <ArrowRight className="me-1"/> عودة
-                </button>
+                <div><h3 className="fw-bold mb-1 text-primary">تعديل المحتوى</h3><p className="text-muted small mb-0">لخدمة: <span className="fw-bold text-dark">{initialData?.service?.title}</span></p></div>
+                <button type="button" className="btn btn-outline-secondary btn-sm w-100 w-md-auto" onClick={() => navigate(-1)}><ArrowRight className="me-1"/> عودة</button>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="row g-4">
@@ -208,73 +136,41 @@ const PostEditPage = () => {
                         <h5 className="fw-bold mb-4 text-dark border-bottom pb-3">المعلومات الأساسية</h5>
                         <div className="mb-4">
                             <label className="form-label fw-bold small">العنوان الأساسي <span className="text-danger">*</span></label>
-                            <input 
-                                type="text" 
-                                className={`form-control form-control-lg border-2 ${errors.title ? 'is-invalid' : ''}`}
-                                {...register('title')} 
-                            />
+                            <input type="text" className={`form-control form-control-lg border-2 ${errors.title ? 'is-invalid' : ''}`} {...register('title')} />
                             {errors.title && <div className="invalid-feedback">{errors.title.message}</div>}
                         </div>
-                        
                         <div className="mb-3">
                             <label className="form-label fw-bold small"><GeoAltFill className="me-1"/> الموقع الجغرافي</label>
                             <div className="p-3 border rounded-3 bg-light d-flex flex-column gap-2 align-items-start">
-                                {/* 🚀 الخريطة الموحدة السليمة */}
-                                <LocationPicker 
-                                    initialLat={Number(currentLat) || 35.1325} 
-                                    initialLng={Number(currentLng) || 36.7515} 
+                                <LocationPicker initialLat={Number(currentLat) || 35.1325} initialLng={Number(currentLng) || 36.7515} 
                                     onLocationSelect={(lat, lng, address) => {
                                         setValue('latitude', lat, { shouldValidate: true });
                                         setValue('longitude', lng, { shouldValidate: true });
                                         if (address) toast.success(`تم التحديث: ${address}`);
                                     }} 
                                 />
-                                <div className="small text-muted mt-2">
-                                    {currentLat && currentLng ? `الإحداثيات الحالية: ${Number(currentLat).toFixed(4)} , ${Number(currentLng).toFixed(4)}` : 'لم يتم تحديد موقع بعد'}
-                                </div>
+                                <div className="small text-muted mt-2">{currentLat && currentLng ? `الإحداثيات الحالية: ${Number(currentLat).toFixed(4)} , ${Number(currentLng).toFixed(4)}` : 'لم يتم تحديد موقع بعد'}</div>
                             </div>
                             <input type="hidden" {...register('latitude')} />
                             <input type="hidden" {...register('longitude')} />
-                            {(errors.latitude || errors.longitude) && (
-                                <div className="text-danger small mt-1">يرجى التأكد من الإحداثيات على الخريطة</div>
-                            )}
+                            {(errors.latitude || errors.longitude) && <div className="text-danger small mt-1">يرجى التأكد من الإحداثيات على الخريطة</div>}
                         </div>
                     </div>
 
                     {schemaFields.length > 0 && (
                         <div className="card border-0 shadow-sm rounded-4 border-top border-4 border-primary mb-4">
-                            <div className="card-header bg-white border-bottom p-4">
-                                <h5 className="fw-bold mb-0 text-primary d-flex align-items-center gap-2"><InfoCircle size={18} /> التفاصيل المخصصة للخدمة</h5>
-                            </div>
+                            <div className="card-header bg-white border-bottom p-4"><h5 className="fw-bold mb-0 text-primary d-flex align-items-center gap-2"><InfoCircle size={18} /> التفاصيل المخصصة للخدمة</h5></div>
                             <div className="card-body p-4 row g-3">
                                 {schemaFields.map((field) => (
                                     <div key={field.fieldName} className="col-md-6">
-                                        <label className="form-label small fw-bold">
-                                            {field.fieldName} {field.isRequired && <span className="text-danger">*</span>}
-                                        </label>
-                                        <Controller
-                                            name={`payload.${field.fieldName}`}
-                                            control={control}
-                                            render={({ field: controllerField }) => (
-                                                <DynamicFieldRenderer 
-                                                    fieldSchema={field} 
-                                                    value={controllerField.value || ''} 
-                                                    // 🚀 Senior Fix: حماية ضد الأخطاء وتحديث سلس
-                                                    onChange={(val) => {
-                                                        if (val && val.target) {
-                                                            controllerField.onChange(val.target.value);
-                                                        } else {
-                                                            controllerField.onChange(val);
-                                                        }
-                                                    }}
-                                                    onFileUpload={handleDynamicFileUpload}
-                                                    uploadingField={uploadingField}
+                                        <label className="form-label small fw-bold">{field.fieldName} {field.isRequired && <span className="text-danger">*</span>}</label>
+                                        <Controller name={`payload.${field.fieldName}`} control={control} render={({ field: controllerField }) => (
+                                                <DynamicFieldRenderer fieldSchema={field} value={controllerField.value || ''} 
+                                                    onChange={(val) => { val && val.target ? controllerField.onChange(val.target.value) : controllerField.onChange(val); }}
+                                                    onFileUpload={handleDynamicFileUpload} uploadingField={uploadingField}
                                                 />
-                                            )}
-                                        />
-                                        {errors?.payload?.[field.fieldName] && (
-                                            <div className="text-danger small mt-1">{errors.payload[field.fieldName].message}</div>
-                                        )}
+                                        )}/>
+                                        {errors?.payload?.[field.fieldName] && <div className="text-danger small mt-1">{errors.payload[field.fieldName].message}</div>}
                                     </div>
                                 ))}
                             </div>
@@ -286,20 +182,13 @@ const PostEditPage = () => {
                     <div className="card border-0 shadow-sm p-4 rounded-4 mb-4 text-center">
                         <label className="form-label fw-bold small mb-3">الصورة الأساسية (اختياري)</label>
                         <div className="bg-light border rounded-3 p-2 mb-3 position-relative" style={{minHeight: '180px'}}>
-                            {previewImage ? (
-                                <img src={previewImage} className="img-fluid rounded w-100 h-100 object-fit-cover position-absolute top-0 start-0" />
-                            ) : (
-                                <ImageIcon size={40} className="opacity-25 mt-5" />
-                            )}
+                            {previewImage ? <img src={previewImage} className="img-fluid rounded w-100 h-100 object-fit-cover position-absolute top-0 start-0" /> : <ImageIcon size={40} className="opacity-25 mt-5" />}
                         </div>
                         <input type="file" className="form-control form-control-sm" accept="image/*" onChange={handleMainImageUpload} disabled={uploading || isSubmitting} />
                         <input type="hidden" {...register('imageUrl')} />
-                        {errors.imageUrl && <div className="text-danger small mt-1">{errors.imageUrl.message}</div>}
                     </div>
-
                     <button type="submit" className="btn btn-success w-100 py-3 fw-bold shadow-lg" disabled={updateMutation.isPending || isSubmitting}>
-                        {updateMutation.isPending || isSubmitting ? <span className="spinner-border spinner-border-sm me-2"/> : <Save size={20} className="me-2"/>} 
-                        {updateMutation.isPending || isSubmitting ? "جاري الحفظ..." : "حفظ التعديلات"}
+                        {updateMutation.isPending || isSubmitting ? <span className="spinner-border spinner-border-sm me-2"/> : <Save size={20} className="me-2"/>} {updateMutation.isPending || isSubmitting ? "جاري الحفظ..." : "حفظ التعديلات"}
                     </button>
                 </div>
             </form>
