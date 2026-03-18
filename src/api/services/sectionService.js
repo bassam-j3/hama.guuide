@@ -16,26 +16,25 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
     }
 };
 
-// 🚀 Senior Fix: الجلب اللانهائي الحقيقي (Deep Recursion)
+// 🚀 Senior Fix: جلب متكرر آمن 100% يجلب كافة المستويات (Deep Recursion)
 export const fetchAllSections = async () => {
-    const allSections = [];
+    let allSections = [];
     
-    const fetchRecursive = async (currentParentId) => {
+    const fetchRecursive = async (parentId) => {
         try {
-            const children = await fetchSectionsByParent(currentParentId);
+            const children = await fetchSectionsByParent(parentId);
             if (!children || children.length === 0) return;
             
             allSections.push(...children);
             
-            // 🚀 السحر هنا: جلب أبناء هؤلاء الأبناء (Recursion)
+            // استخدام allSettled لضمان استمرار الجلب حتى لو فشل أحد الفروع
             const promises = children.map(child => fetchRecursive(child.id));
-            await Promise.all(promises);
+            await Promise.allSettled(promises);
         } catch (err) {
-            // تجاهل 404 بصمت
+            console.error("Recursion error for parent:", parentId);
         }
     };
 
-    // البدء من الجذور
     await fetchRecursive(null);
     return allSections;
 };
@@ -68,24 +67,29 @@ export const updateSection = async (id, sectionData) => {
     return response.data;
 };
 
-// 🚀 Senior Fix: الحذف المتسلسل للأبناء والخدمات (Cascading Delete)
+// 🚀 Senior Fix: الحذف الجذري المتسلسل (Hard Cascading Delete)
 export const deleteSection = async (id) => {
     try {
-        // 1. فك ارتباط الخدمات المرتبطة
+        // 1. جلب وحذف الخدمات المرتبطة بشكل نهائي من قاعدة البيانات!
         const services = await getSectionServices(id);
         if (services && services.length > 0) {
-            const unlinkPromises = services.map(srv => removeServiceFromSection(srv.id));
-            await Promise.allSettled(unlinkPromises);
+            const deleteServicesPromises = services.map(srv => 
+                // استدعاء مباشر لمسار حذف الخدمة لضمان التدمير الكامل
+                axiosInstance.delete(`/Services/${srv.id}`).catch(err => {
+                    if (err.response?.status !== 404) throw err;
+                })
+            );
+            await Promise.allSettled(deleteServicesPromises);
         }
 
-        // 2. الحذف المتسلسل للأبناء (Recursion)
+        // 2. الحذف المتسلسل للأبناء (أبناء الأبناء سيحذفون خدماتهم وأبناءهم أيضاً)
         const children = await fetchSectionsByParent(id);
         if (children && children.length > 0) {
             const deleteChildrenPromises = children.map(child => deleteSection(child.id));
             await Promise.allSettled(deleteChildrenPromises);
         }
 
-        // 3. أخيراً: حذف القسم نفسه
+        // 3. حذف القسم نفسه
         const response = await axiosInstance.delete(`${API_BASE}/${id}`);
         return response.data;
     } catch (error) {

@@ -12,8 +12,6 @@ const SectionsManagementPage = () => {
 
     const [draggedSection, setDraggedSection] = useState(null);
     const [dragOverId, setDragOverId] = useState(null);
-    
-    // حالة لتتبع الأقسام المفتوحة (Expanded)
     const [expandedSections, setExpandedSections] = useState({});
 
     const { data: sectionsData, isLoading, isError } = useSections();
@@ -22,10 +20,7 @@ const SectionsManagementPage = () => {
     const removeMutation = useRemoveChildSection(); 
 
     const sections = Array.isArray(sectionsData) ? sectionsData : [];
-    
-    // استخراج الجذور فقط (الأقسام الرئيسية)
     const rootSections = sections.filter(s => !s.parentId);
-    
     const isProcessing = deleteMutation.isPending || assignMutation.isPending || removeMutation.isPending;
 
     const toggleSection = (id) => {
@@ -33,10 +28,10 @@ const SectionsManagementPage = () => {
     };
 
     const handleDelete = (id, title) => {
-        if (window.confirm(`⚠️ تحذير: هل أنت متأكد من حذف القسم "${title}"؟\nسيتم حذف كافة الأقسام الفرعية التابعة له والخدمات بشكل نهائي!`)) {
-            const toastId = toast.loading('جاري الحذف المتسلسل...');
+        if (window.confirm(`⚠️ تحذير: سيتم حذف القسم "${title}" وكافة الخدمات المرتبطة به نهائياً! هل أنت متأكد؟`)) {
+            const toastId = toast.loading('جاري الحذف الجذري...');
             deleteMutation.mutate(id, {
-                onSuccess: () => toast.success('تم الحذف!', { id: toastId }),
+                onSuccess: () => toast.success('تم الحذف بنجاح!', { id: toastId }),
                 onError: () => toast.error('فشل الحذف.', { id: toastId })
             });
         }
@@ -51,7 +46,7 @@ const SectionsManagementPage = () => {
         
         if (window.confirm(`نقل "${draggedSection.title}" تحت "${targetSection.title}"؟`)) {
             assignMutation.mutate({ parentId: targetSection.id, childId: draggedSection.id }, {
-                onError: () => toast.error("فشل الربط!")
+                onError: () => toast.error("الخادم يرفض الربط! تأكد من صحة مسار الـ API مع الباك-إند.")
             });
         }
     };
@@ -62,7 +57,7 @@ const SectionsManagementPage = () => {
         }
     };
 
-    // 🚀 Senior Fix: مكون متكرر (Recursive Component) لرسم الشجرة
+    // 🚀 المكون المتكرر (الذي يرسم أبناء الأبناء بشكل لا نهائي)
     const SectionRow = ({ section, level = 0 }) => {
         const children = sections.filter(s => s.parentId === section.id);
         const hasChildren = children.length > 0;
@@ -82,13 +77,9 @@ const SectionsManagementPage = () => {
                         <div style={{ paddingRight: `${level * 40}px` }} className="d-flex align-items-center gap-3">
                             <ArrowsMove className={isProcessing ? "text-muted opacity-25" : "text-primary"} style={{ cursor: isProcessing ? 'not-allowed' : 'grab' }} />
                             
-                            {/* زر الطي والفتح (Dropdown) */}
                             <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}>
                                 {hasChildren && (
-                                    <button 
-                                        className="btn btn-sm btn-link p-0 text-dark shadow-none border-0" 
-                                        onClick={() => toggleSection(section.id)}
-                                    >
+                                    <button className="btn btn-sm btn-link p-0 text-dark shadow-none border-0" onClick={() => toggleSection(section.id)}>
                                         {isExpanded ? <ChevronDown size={18} /> : <ChevronLeft size={18} />}
                                     </button>
                                 )}
@@ -98,7 +89,7 @@ const SectionsManagementPage = () => {
                             
                             <div className="fw-bold text-dark">
                                 {section.title}
-                                {level > 0 && <span className="badge bg-info bg-opacity-10 text-info ms-2 border border-info border-opacity-25 small">L{level}</span>}
+                                {level > 0 && <span className="badge bg-info bg-opacity-10 text-info ms-2 border border-info border-opacity-25 small">فرعي L{level}</span>}
                             </div>
                         </div>
                     </td>
@@ -106,20 +97,19 @@ const SectionsManagementPage = () => {
                     <td className="text-center px-4 py-3">
                         <div className="d-flex justify-content-center gap-2">
                             {section.parentId && (
-                                <button className="btn btn-sm btn-light text-warning" onClick={() => handleRemoveParent(section.parentId, section.id)} disabled={isProcessing} title="فك الارتباط ليصبح قسماً رئيسياً">
+                                <button className="btn btn-sm btn-light text-warning" onClick={() => handleRemoveParent(section.parentId, section.id)} disabled={isProcessing} title="فك الارتباط">
                                     <ArrowUpCircle size={15} />
                                 </button>
                             )}
-                            <button className="btn btn-sm btn-light text-primary" onClick={() => navigate(`/admin/sections/edit/${section.id}`)} disabled={isProcessing} title="تعديل">
+                            <button className="btn btn-sm btn-light text-primary" onClick={() => navigate(`/admin/sections/edit/${section.id}`)} disabled={isProcessing}>
                                 <PencilSquare size={15} />
                             </button>
-                            <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(section.id, section.title)} disabled={isProcessing} title="حذف">
+                            <button className="btn btn-sm btn-light text-danger" onClick={() => handleDelete(section.id, section.title)} disabled={isProcessing}>
                                 <Trash size={15} />
                             </button>
                         </div>
                     </td>
                 </tr>
-                {/* استدعاء متكرر (Recursion) لرسم الأبناء إذا كان القسم مفتوحاً */}
                 {isExpanded && hasChildren && children.map(child => (
                     <SectionRow key={child.id} section={child} level={level + 1} />
                 ))}
@@ -135,7 +125,7 @@ const SectionsManagementPage = () => {
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div>
                     <h3 className="fw-bold mb-1 text-primary">إدارة الأقسام</h3>
-                    <p className="text-muted small mb-0">استعرض الشجرة الهرمية، واسحب الأقسام لترتيبها.</p>
+                    <p className="text-muted small mb-0">استعرض الشجرة الهرمية واسحب الأقسام لترتيبها.</p>
                 </div>
                 <button className="btn btn-success btn-sm px-4 shadow-sm" onClick={() => navigate('/admin/sections/create')}>
                     <PlusLg className="me-2"/> إضافة قسم
