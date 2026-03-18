@@ -1,8 +1,7 @@
 import axios from 'axios';
+import { getAuthData, setAuthData, clearAuthData } from './services/tokenService'; // 🚀 استيراد الخدمة الجديدة
 
-// قراءة الرابط من ملف .env ديناميكياً
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; 
 
 // ==========================================
 // 🌟 دالة مساعدة لمعالجة روابط الصور
@@ -11,59 +10,40 @@ export const getImageUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
     
-    // استخراج الدومين من الرابط الأساسي برمجياً
     const DOMAIN = API_BASE_URL.replace(/\/api\/?$/i, '');
     return url.startsWith('/') ? `${DOMAIN}${url}` : `${DOMAIN}/${url}`;
 };
 
-// 1. إنشاء نسخة Axios لطلبات الـ REST العادية
+// إنشاء النسخ الثلاثة لـ Axios
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
-    headers: {
-        'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
 });
 
-// 2. إنشاء نسخة Axios لطلبات الـ GraphQL
 const GRAPHQL_DOMAIN = API_BASE_URL.replace(/\/api\/?$/i, '');
 export const graphqlInstance = axios.create({
     baseURL: `${GRAPHQL_DOMAIN}/graphql`, 
-    headers: {
-        'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
 });
 
-// 3. 🚀 إنشاء نسخة Axios مخصصة لرفع الملفات (بدون إجبار Content-Type)
 export const axiosUploadInstance = axios.create({
     baseURL: API_BASE_URL,
-    // المتصفح سيتكفل تلقائياً بإضافة multipart/form-data مع الـ Boundary
 });
-
-// دالة مساعدة لقراءة كائن الـ Auth من الـ Session Storage
-const getAuthData = () => {
-    try {
-        const storedData = sessionStorage.getItem(STORAGE_KEY_PREFIX);
-        return storedData ? JSON.parse(storedData) : null;
-    } catch {
-        return null;
-    }
-};
 
 // ==========================================
 // 🌟 نظام اعتراض الطلبات (Request Interceptor)
 // ==========================================
 const requestInterceptor = (config) => {
-    const authData = getAuthData();
+    const authData = getAuthData(); // 🚀 استدعاء فائق السرعة من الذاكرة (O(1))
     if (authData && authData.access_token) {
         config.headers.Authorization = `Bearer ${authData.access_token}`;
     }
     return config;
 };
 
-// تطبيق الـ Interceptor على جميع النسخ
 axiosInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
 graphqlInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
-axiosUploadInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error)); // 🚀 تطبيقه هنا لحماية الرفع
+axiosUploadInstance.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
 
 // ==========================================
 // 🌟 نظام تجديد الجلسة التلقائي (Refresh Token)
@@ -73,11 +53,8 @@ let failedQueue = [];
 
 const processQueue = (error, token = null) => {
     failedQueue.forEach(prom => {
-        if (error) {
-            prom.reject(error);
-        } else {
-            prom.resolve(token);
-        }
+        if (error) prom.reject(error);
+        else prom.resolve(token);
     });
     failedQueue = [];
 };
@@ -111,11 +88,12 @@ const responseErrorInterceptor = async (error) => {
                 ...authData,
                 access_token: newAuthToken
             };
-            sessionStorage.setItem(STORAGE_KEY_PREFIX, JSON.stringify(updatedAuthData));
+            
+            setAuthData(updatedAuthData); // 🚀 حفظ التوكن الجديد مركزياً
             
             axiosInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
             graphqlInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
-            axiosUploadInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`; // 🚀 التحديث هنا أيضاً
+            axiosUploadInstance.defaults.headers.common.Authorization = `Bearer ${newAuthToken}`;
 
             processQueue(null, newAuthToken);
 
@@ -124,7 +102,7 @@ const responseErrorInterceptor = async (error) => {
 
         } catch (refreshError) {
             processQueue(refreshError, null);
-            sessionStorage.removeItem(STORAGE_KEY_PREFIX);
+            clearAuthData(); // 🚀 مسح الجلسة مركزياً
             window.location.href = '/login';
             return Promise.reject(refreshError);
         } finally {
@@ -134,9 +112,8 @@ const responseErrorInterceptor = async (error) => {
     return Promise.reject(error);
 };
 
-// تطبيق الـ Error Interceptor على جميع النسخ
 axiosInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
 graphqlInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
-axiosUploadInstance.interceptors.response.use((response) => response, responseErrorInterceptor); // 🚀 تطبيق الـ Queue & Refresh على الرفع
+axiosUploadInstance.interceptors.response.use((response) => response, responseErrorInterceptor);
 
 export default axiosInstance;
