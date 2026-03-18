@@ -1,34 +1,52 @@
 import axiosInstance from '../axiosConfig';
 
-const API_BASE = '/Sections';
-
-export const fetchAllSections = async () => {
-    // Uses /all to get flat list safely without triggering 400 Bad Request
-    const response = await axiosInstance.get(`${API_BASE}/all`);
-    const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
-
-    const cleanSections = rawData.filter(item => {
-        const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
-        return !isService;
-    });
-
-    return cleanSections;
-};
+const API_BASE = '/Sections'; 
 
 export const fetchSectionsByParent = async (parentId = null, level = null) => {
-    const params = {};
-    if (parentId) params.parentId = parentId;
-    if (level !== null && level !== undefined) params.level = level;
+    try {
+        const params = {};
+        if (parentId) params.parentId = parentId;
+        if (level !== null && level !== undefined) params.level = level;
 
-    const response = await axiosInstance.get(API_BASE, { params });
-    const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
+        const response = await axiosInstance.get(API_BASE, { params });
+        const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
 
-    const cleanSections = rawData.filter(item => {
-        const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
-        return !isService;
-    });
+        // 🚀 Senior Frontend Shield: Filter out services disguised as sections
+        const cleanSections = rawData.filter(item => {
+            const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
+            return !isService; 
+        });
 
-    return cleanSections;
+        return cleanSections;
+    } catch (error) {
+        // Safely swallow 404s (which happen when a section has no children)
+        if (error.response?.status === 404) return [];
+        throw error;
+    }
+};
+
+export const fetchAllSections = async () => {
+    let allSections = [];
+    
+    const fetchRecursive = async (parentId) => {
+        try {
+            // This calls fetchSectionsByParent, which already has the Shield and 404 safety
+            const children = await fetchSectionsByParent(parentId);
+            if (!children || children.length === 0) return;
+            
+            allSections.push(...children);
+            
+            // Deep Recursion: fetch children of children concurrently
+            const promises = children.map(child => fetchRecursive(child.id));
+            await Promise.allSettled(promises);
+        } catch (err) {
+            console.error("Recursion error for parent:", parentId, err);
+        }
+    };
+
+    // Start from the root (parentId = null)
+    await fetchRecursive(null);
+    return allSections;
 };
 
 export const getSectionById = async (id) => {
@@ -60,8 +78,28 @@ export const updateSection = async (id, sectionData) => {
 };
 
 export const deleteSection = async (id) => {
-    const response = await axiosInstance.delete(`${API_BASE}/${id}`);
-    return response.data;
+    try {
+        const services = await getSectionServices(id);
+        if (services && services.length > 0) {
+            const deleteServicesPromises = services.map(srv => 
+                axiosInstance.delete(`/Services/${srv.id}`).catch(err => {
+                    if (err.response?.status !== 404) throw err;
+                })
+            );
+            await Promise.allSettled(deleteServicesPromises);
+        }
+
+        const children = await fetchSectionsByParent(id);
+        if (children && children.length > 0) {
+            const deleteChildrenPromises = children.map(child => deleteSection(child.id));
+            await Promise.allSettled(deleteChildrenPromises);
+        }
+
+        const response = await axiosInstance.delete(`${API_BASE}/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
 };
 
 export const assignChildSection = async (parentId, childId) => {
@@ -77,8 +115,13 @@ export const removeChildSection = async (parentId, childId) => {
 };
 
 export const getSectionServices = async (id) => {
-    const response = await axiosInstance.get(`${API_BASE}/${id}/services`);
-    return response.data;
+    try {
+        const response = await axiosInstance.get(`${API_BASE}/${id}/services`);
+        return response.data;
+    } catch (error) {
+        if (error.response?.status === 404) return [];
+        throw error;
+    }
 };
 
 export const linkServiceToSection = async (sectionId, serviceId) => {
@@ -91,8 +134,8 @@ export const removeServiceFromSection = async (serviceId) => {
     return response.data;
 };
 
-const sectionService = {
-    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection,
+const sectionService = { 
+    fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
     assignChildSection, removeChildSection, getSectionServices, linkServiceToSection, removeServiceFromSection
 };
 

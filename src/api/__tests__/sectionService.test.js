@@ -16,20 +16,26 @@ describe('sectionService API', () => {
         vi.clearAllMocks();
     });
 
-    it('fetchAllSections fetches flat list using /all and shields services', async () => {
-        const mockData = [
-            { id: '1', title: 'Section 1' },
-            { id: '2', title: 'Service hiding as section', sectionId: '123' }
-        ];
-
-        axiosInstance.get.mockResolvedValueOnce({ data: mockData });
+    it('fetchAllSections uses recursive logic, filters services, and handles 404s gracefully', async () => {
+        // 1. Mock root sections (Level 0)
+        axiosInstance.get.mockResolvedValueOnce({
+            data: [
+                { id: 'root1', title: 'Root 1' },
+                { id: 'service1', title: 'Masquerading Service', sectionId: '123' } // Should be filtered out
+            ]
+        });
+        
+        // 2. Mock children fetch for 'root1' (Returns 404 because it has no children)
+        axiosInstance.get.mockRejectedValueOnce({ response: { status: 404 } });
 
         const sections = await sectionService.fetchAllSections();
 
-        expect(axiosInstance.get).toHaveBeenCalledWith('/Sections/all');
-        expect(axiosInstance.get).toHaveBeenCalledTimes(1);
-        expect(sections).toHaveLength(1);
-        expect(sections[0].id).toBe('1');
+        // Verifications
+        expect(sections).toHaveLength(1); // The service was successfully dropped!
+        expect(sections[0].id).toBe('root1');
+        
+        // It should have called the API 2 times (Once for roots, once for root1's children)
+        expect(axiosInstance.get).toHaveBeenCalledTimes(2);
     });
 
     it('assignChildSection calls the correct PUT endpoint', async () => {

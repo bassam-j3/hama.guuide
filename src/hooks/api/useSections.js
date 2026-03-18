@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import sectionService from '../../api/services/sectionService';
-import { buildTree } from '../../utils/treeBuilder';
 import toast from 'react-hot-toast';
 
 export const useSections = (parentId = null, level = null) => {
@@ -12,16 +11,7 @@ export const useSections = (parentId = null, level = null) => {
             }
             return sectionService.fetchSectionsByParent(parentId, level);
         },
-        staleTime: 5 * 60 * 1000,
-    });
-};
-
-export const useSectionsTree = () => {
-    return useQuery({
-        queryKey: ['sections', 'tree'],
-        queryFn: sectionService.fetchAllSections,
-        select: (data) => buildTree(data, 'id', 'parentId'),
-        staleTime: 5 * 60 * 1000,
+        staleTime: 5 * 60 * 1000, 
     });
 };
 
