@@ -2,38 +2,42 @@ import axiosInstance from '../axiosConfig';
 
 const API_BASE = '/Sections'; 
 
-// 1. الدالة الأساسية التي تطابق الـ Swagger وتجلب مستوى واحد فقط
 export const fetchSectionsByParent = async (parentId = null, level = null) => {
-    const params = {};
-    if (parentId) params.parentId = parentId;
-    if (level !== null && level !== undefined) params.level = level;
-    params._t = new Date().getTime();
+    try {
+        const params = {};
+        if (parentId) params.parentId = parentId;
+        if (level !== null && level !== undefined) params.level = level;
+        params._t = new Date().getTime();
 
-    const response = await axiosInstance.get(API_BASE, { params });
-    // التعامل الآمن مع الاستجابة لضمان إرجاع مصفوفة
-    return Array.isArray(response.data) ? response.data : (response.data?.items || []);
+        const response = await axiosInstance.get(API_BASE, { params });
+        return Array.isArray(response.data) ? response.data : (response.data?.items || []);
+    } catch (error) {
+        // 🚀 Senior Fix: إذا كان الخطأ 404 (لا يوجد أبناء)، نعيد مصفوفة فارغة بصمت
+        // بدلاً من ترك التطبيق ينهار
+        if (error.response && error.response.status === 404) {
+            return [];
+        }
+        throw error;
+    }
 };
 
-// 2. 🚀 Senior Fix: الدالة المتكررة (Recursive) كبديل لـ /all المهجورة
-// هذه الدالة ستقوم بتجميع كافة الأقسام من كافة المستويات وإرجاعها في مصفوفة واحدة
 export const fetchAllSections = async () => {
     const allSections = [];
     
     const fetchRecursive = async (currentParentId = null) => {
-        // جلب الأبناء للأب الحالي
+        // جلب الأبناء للأب الحالي (آمن الآن ولن ينهار مع 404)
         const sections = await fetchSectionsByParent(currentParentId);
         
         if (!sections || sections.length === 0) return;
         
-        // إضافة الأقسام المكتشفة إلى المصفوفة الرئيسية
         allSections.push(...sections);
         
-        // جلب أبناء هؤلاء الأقسام بشكل متوازٍ (Parallel) لتسريع العملية
+        // جلب أبناء هؤلاء الأقسام
         const promises = sections.map(sec => fetchRecursive(sec.id));
         await Promise.all(promises);
     };
 
-    // البدء بجلب الجذور (التي ليس لها أب)
+    // البدء بجلب الجذور
     await fetchRecursive(null);
     
     return allSections;
