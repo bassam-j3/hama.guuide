@@ -2,13 +2,40 @@ import React from 'react';
 import { 
     CloudUpload, Trash, GeoAltFill, Calendar3, Clock, 
     Hash, Type, Envelope, Telephone, FileEarmarkText, 
-    Image as ImageIcon, ToggleOn 
+    Image as ImageIcon, ToggleOn, ExclamationTriangle 
 } from 'react-bootstrap-icons';
 import { getImageUrl } from '../../api/axiosConfig';
 import LocationPicker from '../common/LocationPicker';
 
 // ----------------------------------------------------
-// 1. المكونات الفرعية (Sub-components) لكل نوع حقل
+// 1. 🚀 Senior Fix: حماية الصفحة من الانهيار (Error Boundary)
+// ----------------------------------------------------
+class FieldErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+    componentDidCatch(error, errorInfo) {
+        console.error("Dynamic Field Render Error:", error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-3 mb-4 border border-danger border-opacity-50 text-danger bg-danger bg-opacity-10 rounded-3 small fw-bold d-flex align-items-center gap-2 shadow-sm">
+                    <ExclamationTriangle size={20} className="flex-shrink-0" />
+                    <div>تعذر تحميل هذا الحقل بسبب خطأ في الإعدادات. يرجى تحديث الصفحة أو مراجعة إدارة المخطط.</div>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+// ----------------------------------------------------
+// 2. المكونات الفرعية (Sub-components) لكل نوع حقل
 // ----------------------------------------------------
 const FieldWrapper = ({ fieldName, isRequired, icon, children }) => (
     <div className="mb-4 animate-fade-in">
@@ -118,9 +145,8 @@ const JsonField = ({ fieldName, value, handleChange, isRequired, fieldType, pres
     );
 };
 
-
 // ----------------------------------------------------
-// 2. 🚀 Senior Pattern: الـ Object Mapping للبحث بسرعة O(1)
+// 3. الـ Object Mapping
 // ----------------------------------------------------
 const FIELD_COMPONENTS_MAP = {
     Bool: BoolField,
@@ -132,18 +158,17 @@ const FIELD_COMPONENTS_MAP = {
     Date: DateField,
     Timespan: TimespanField,
     Int: IntField,
-    Long: IntField, // نفس معاملة الـ Int
+    Long: IntField, 
     Float: FloatField,
-    Decimal: FloatField, // نفس معاملة الـ Float
+    Decimal: FloatField, 
     Email: EmailField,
     PhoneNumber: PhoneField,
     JSON: JsonField,
     String: StringField
 };
 
-
 // ----------------------------------------------------
-// 3. المكون الرئيسي (Main Component)
+// 4. المكون الرئيسي (Main Component)
 // ----------------------------------------------------
 const DynamicFieldRenderer = (props) => {
     const field = props.fieldSchema || props.field;
@@ -153,15 +178,20 @@ const DynamicFieldRenderer = (props) => {
         props.onChange(val); 
     };
 
-    // معالجة استثناء Presentation للنصوص الطويلة (Textarea)
     if (['textarea', 'نص طويل', 'كود'].includes(presentation) && fieldType !== 'JSON') {
         return <JsonField {...props} {...field} handleChange={handleChange} />;
     }
 
-    // جلب المكون المناسب ديناميكياً من الـ Map
     const TargetComponent = FIELD_COMPONENTS_MAP[fieldType] || StringField;
 
     return <TargetComponent {...props} {...field} handleChange={handleChange} />;
 };
 
-export default React.memo(DynamicFieldRenderer); // 🚀 استخدام Memo لزيادة الأداء
+// 🚀 التغليف النهائي بـ ErrorBoundary
+const SafeDynamicFieldRenderer = (props) => (
+    <FieldErrorBoundary>
+        <DynamicFieldRenderer {...props} />
+    </FieldErrorBoundary>
+);
+
+export default React.memo(SafeDynamicFieldRenderer);
