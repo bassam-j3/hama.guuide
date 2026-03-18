@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowRight, Save, Image as ImageIcon, GeoAlt } from 'react-bootstrap-icons';
+import { ArrowRight, Save, Image as ImageIcon } from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
 
 import { fetchAllServices } from '../../api/services/serviceService';
@@ -11,12 +11,12 @@ import schemaService from '../../api/services/schemaService';
 import { createPostREST } from '../../api/services/postService';
 import { uploadFile } from '../../api/services/fileService';
 import { getImageUrl } from '../../api/axiosConfig';
-import { buildDynamicSchema } from '../../utils/schemaBuilder'; // 🚀 استيراد اللوجيك المنفصل
+import { buildDynamicSchema } from '../../utils/schemaBuilder';
 
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import DynamicFieldRenderer from '../../components/posts/DynamicFieldRenderer'; 
-import LocationPicker from '../../components/common/LocationPicker';
+import PostLocationSection from '../../components/posts/PostLocationSection'; // 🚀 استيراد مكون الخريطة المعزول
 
 const PostCreatePage = () => {
     const { serviceSlug } = useParams();
@@ -41,17 +41,13 @@ const PostCreatePage = () => {
     });
 
     const schemaFields = Array.isArray(schemaData) ? schemaData : (schemaData?.schema || schemaData || []);
-
-    // 🚀 استخدام المساعد الخارجي بدلاً من كتابة المنطق هنا
     const dynamicZodSchema = useMemo(() => buildDynamicSchema(schemaFields), [schemaFields]);
 
-    const { register, handleSubmit, control, setValue, watch, formState: { errors, isSubmitting } } = useForm({
+    // 🚀 تم حذف watch('latitude') من هنا لإنقاذ أداء الصفحة!
+    const { register, handleSubmit, control, setValue, formState: { errors, isSubmitting } } = useForm({
         resolver: zodResolver(dynamicZodSchema),
         defaultValues: { title: '', imageUrl: '', latitude: 35.1325, longitude: 36.7515, payload: {} }
     });
-
-    const currentLat = watch('latitude');
-    const currentLng = watch('longitude');
 
     const createMutation = useMutation({
         mutationFn: (data) => createPostREST(serviceSlug, data),
@@ -115,26 +111,9 @@ const PostCreatePage = () => {
                                 {errors.title && <div className="invalid-feedback">{errors.title.message}</div>}
                             </div>
                             
-                            <div className="mb-3">
-                                <label className="form-label small fw-bold"><GeoAlt className="me-1"/> الموقع الجغرافي</label>
-                                <div className="p-3 border rounded-3 bg-light d-flex flex-column gap-2 align-items-start">
-                                    <LocationPicker 
-                                        initialLat={currentLat} 
-                                        initialLng={currentLng} 
-                                        onLocationSelect={(lat, lng, address) => {
-                                            setValue('latitude', lat, { shouldValidate: true });
-                                            setValue('longitude', lng, { shouldValidate: true });
-                                            if (address) toast.success(`تم تحديد الموقع بنجاح`);
-                                        }} 
-                                    />
-                                    <div className="small text-muted mt-2">
-                                        {currentLat && currentLng ? `الإحداثيات الحالية: ${Number(currentLat).toFixed(4)} , ${Number(currentLng).toFixed(4)}` : 'لم يتم تحديد موقع بعد'}
-                                    </div>
-                                </div>
-                                <input type="hidden" {...register('latitude')} />
-                                <input type="hidden" {...register('longitude')} />
-                                {(errors.latitude || errors.longitude) && <div className="text-danger small mt-1">يرجى التأكد من الإحداثيات على الخريطة</div>}
-                            </div>
+                            {/* 🚀 قسم الخريطة المعزول: كود أنظف وأداء مضاعف */}
+                            <PostLocationSection control={control} setValue={setValue} register={register} errors={errors} />
+                            
                         </div>
                     </div>
 

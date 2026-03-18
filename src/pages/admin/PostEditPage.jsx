@@ -3,7 +3,7 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Save, ArrowRight, InfoCircle, Image as ImageIcon, GeoAltFill } from "react-bootstrap-icons";
+import { Save, ArrowRight, InfoCircle, Image as ImageIcon } from "react-bootstrap-icons";
 import toast from 'react-hot-toast'; 
 
 import { fetchAllServices } from "../../api/services/serviceService";
@@ -11,12 +11,12 @@ import { getPostById, updatePostREST } from "../../api/services/postService";
 import schemaService from '../../api/services/schemaService';
 import { uploadFile } from "../../api/services/fileService";
 import { getImageUrl } from "../../api/axiosConfig";
-import { buildDynamicSchema, generateDefaultPayload } from '../../utils/schemaBuilder'; // 🚀 استيراد اللوجيك
+import { buildDynamicSchema, generateDefaultPayload } from '../../utils/schemaBuilder';
 
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
-import LocationPicker from '../../components/common/LocationPicker';
 import DynamicFieldRenderer from "../../components/posts/DynamicFieldRenderer";
+import PostLocationSection from '../../components/posts/PostLocationSection'; // 🚀 المكون المعزول
 
 const PostEditPage = () => {
     const { serviceSlug, postId } = useParams(); 
@@ -45,19 +45,14 @@ const PostEditPage = () => {
     });
 
     const schemaFields = Array.isArray(schemaData) ? schemaData : (schemaData?.schema || schemaData || []);
-
-    // 🚀 استخدام المساعد الخارجي هنا أيضاً
     const dynamicZodSchema = useMemo(() => buildDynamicSchema(schemaFields), [schemaFields]);
 
-    const { register, handleSubmit, control, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm({
+    // 🚀 تم حذف watch
+    const { register, handleSubmit, control, setValue, reset, formState: { errors, isSubmitting } } = useForm({
         resolver: zodResolver(dynamicZodSchema),
         defaultValues: { title: '', imageUrl: '', latitude: 0, longitude: 0, payload: {} }
     });
 
-    const currentLat = watch('latitude');
-    const currentLng = watch('longitude');
-
-    // 🚀 استخدام `generateDefaultPayload` لتنظيف الكود
     useEffect(() => {
         if (initialData?.post && schemaFields.length >= 0) {
             const p = initialData.post;
@@ -108,7 +103,7 @@ const PostEditPage = () => {
             setTimeout(() => navigate(`/admin/services/${serviceSlug}/posts`), 1000);
         },
         onError: (err) => {
-            if (err.response?.status === 500) toast.error("خطأ 500: انهيار في السيرفر الداخلي (الرجاء مراجعة الباك-إند)");
+            if (err.response?.status === 500) toast.error("خطأ 500: انهيار في السيرفر الداخلي");
             else toast.error(err.response?.data?.Errors?.[0]?.description || err.response?.data?.detail || "فشل التحديث.");
         }
     });
@@ -139,22 +134,10 @@ const PostEditPage = () => {
                             <input type="text" className={`form-control form-control-lg border-2 ${errors.title ? 'is-invalid' : ''}`} {...register('title')} />
                             {errors.title && <div className="invalid-feedback">{errors.title.message}</div>}
                         </div>
-                        <div className="mb-3">
-                            <label className="form-label fw-bold small"><GeoAltFill className="me-1"/> الموقع الجغرافي</label>
-                            <div className="p-3 border rounded-3 bg-light d-flex flex-column gap-2 align-items-start">
-                                <LocationPicker initialLat={Number(currentLat) || 35.1325} initialLng={Number(currentLng) || 36.7515} 
-                                    onLocationSelect={(lat, lng, address) => {
-                                        setValue('latitude', lat, { shouldValidate: true });
-                                        setValue('longitude', lng, { shouldValidate: true });
-                                        if (address) toast.success(`تم التحديث: ${address}`);
-                                    }} 
-                                />
-                                <div className="small text-muted mt-2">{currentLat && currentLng ? `الإحداثيات الحالية: ${Number(currentLat).toFixed(4)} , ${Number(currentLng).toFixed(4)}` : 'لم يتم تحديد موقع بعد'}</div>
-                            </div>
-                            <input type="hidden" {...register('latitude')} />
-                            <input type="hidden" {...register('longitude')} />
-                            {(errors.latitude || errors.longitude) && <div className="text-danger small mt-1">يرجى التأكد من الإحداثيات على الخريطة</div>}
-                        </div>
+                        
+                        {/* 🚀 المكون المعزول */}
+                        <PostLocationSection control={control} setValue={setValue} register={register} errors={errors} />
+
                     </div>
 
                     {schemaFields.length > 0 && (
