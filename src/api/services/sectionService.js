@@ -1,77 +1,36 @@
 import axiosInstance from '../axiosConfig';
 
-const API_BASE = '/Sections'; 
+const BASE_PATH = '/Sections';
 
-export const getSections = async (parentId = null, level = null) => {
+/**
+ * Fetch sections with optional pagination/hierarchy parameters.
+ * 🚀 SENIOR FIX: Replaced deprecated /Sections/all with standard /Sections?parentId=&level=
+ */
+export const fetchAllSections = async (parentId = null, level = null) => {
     const params = {};
     if (parentId) params.parentId = parentId;
-    if (level !== null) params.level = level;
-    const response = await axiosInstance.get(API_BASE, { params });
-    return response.data; // 🚀 فك الغلاف
-};
+    if (level !== null && level !== undefined) params.level = level;
 
-export const fetchAllSections = async () => {
-    const response = await axiosInstance.get(`${API_BASE}/all`, { params: { _t: new Date().getTime() } });
+    const response = await axiosInstance.get(BASE_PATH, { params });
     return response.data;
 };
 
 export const getSectionById = async (id) => {
-    const response = await axiosInstance.get(`${API_BASE}/${id}`);
+    const response = await axiosInstance.get(`${BASE_PATH}/${id}`);
     return response.data;
 };
 
-export const createSection = async (sectionData) => {
-    const payload = {
-        title: sectionData.title,
-        slug: sectionData.slug,
-        description: sectionData.description || null,
-        parentId: (sectionData.parentId && sectionData.parentId.trim() !== "") ? sectionData.parentId : null,
-        imageUrl: sectionData.imageUrl || null
-    };
-    const response = await axiosInstance.post(API_BASE, payload);
+export const createSection = async (data) => {
+    const response = await axiosInstance.post(BASE_PATH, data);
     return response.data;
 };
 
-export const updateSection = async (id, sectionData) => {
-    const payload = {
-        title: sectionData.title,
-        slug: sectionData.slug,
-        description: sectionData.description || null,
-        imageUrl: sectionData.imageUrl || null
-    };
-    const response = await axiosInstance.put(`${API_BASE}/${id}`, payload);
+export const updateSection = async (id, data) => {
+    const response = await axiosInstance.put(`${BASE_PATH}/${id}`, data);
     return response.data;
 };
 
 export const deleteSection = async (id) => {
-    const response = await axiosInstance.delete(`${API_BASE}/${id}`);
+    const response = await axiosInstance.delete(`${BASE_PATH}/${id}`);
     return response.data;
 };
-
-export const getSectionServices = async (id) => {
-    const response = await axiosInstance.get(`${API_BASE}/${id}/services`);
-    return response.data;
-};
-
-export const linkServiceToSection = async (sectionId, serviceId) => {
-    const response = await axiosInstance.put(`${API_BASE}/${sectionId}/services/${serviceId}`);
-    return response.data;
-};
-
-export const removeServiceFromSection = async (serviceId) => {
-    const response = await axiosInstance.delete(`${API_BASE}/services/${serviceId}`);
-    return response.data;
-};
-
-export const assignChildSection = async (parentId, childId) => {
-    const response = await axiosInstance.put(`${API_BASE}/${parentId}/sections/${childId}`);
-    return response.data;
-};
-
-export const removeChildSection = async (parentId, childId) => {
-    const response = await axiosInstance.delete(`${API_BASE}/${parentId}/sections/${childId}`);
-    return response.data;
-};
-
-const sectionService = { getSections, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, getSectionServices, linkServiceToSection, removeServiceFromSection, assignChildSection, removeChildSection };
-export default sectionService;
