@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
     House, Grid, Gear, BoxArrowRight, 
     ChevronDown, PatchCheck, Collection, FileText, People, XLg, 
@@ -11,66 +12,84 @@ import { fetchAllSections } from '../../api/services/sectionService';
 import { userService } from '../../api/services/userService';
 import { authService } from '../../api/services/authConfig';
 import { useAuth } from '../../hooks/useAuth'; 
-// 🚀 استيراد useQueryClient للتحكم في الكاش
-import { useQueryClient } from '@tanstack/react-query'; 
-import logo from '../../assets/logo.svg';
 
-
-
-// --- Custom Hook: جلب البيانات وبناء الشجرة ---
 const useSidebarData = () => {
-    const [tree, setTree] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { data: sectionsRaw, isLoading: loadingSections } = useQuery({
+        queryKey: ['sections'],
+        queryFn: fetchAllSections
+    });
 
-    useEffect(() => {
-        const buildTree = async () => {
-            try {
-                const [sections, services] = await Promise.all([
-                    fetchAllSections().catch(() => []), 
-                    fetchAllServices().catch(() => [])
-                ]);
-                
-                const sectionMap = {};
-                if (Array.isArray(sections)) {
-                    sections.forEach(sec => { sectionMap[sec.id] = { ...sec, children: [], type: 'section' }; });
+    const { data: servicesData, isLoading: loadingServices } = useQuery({
+        queryKey: ['services'],
+        queryFn: fetchAllServices
+    });
+
+    const tree = useMemo(() => {
+        const actualSections = [];
+        const servicesRaw = Array.isArray(servicesData) ? servicesData : (servicesData?.items || []);
+        const actualServices = [...servicesRaw];
+
+        if (Array.isArray(sectionsRaw)) {
+            sectionsRaw.forEach(item => {
+                if (item.sectionId || item.discriminator === 'Service') {
+                    if (!actualServices.find(s => s.id === item.id)) {
+                        actualServices.push(item);
+                    }
+                } else {
+                    actualSections.push(item);
                 }
-                if (Array.isArray(services)) {
-                    services.forEach(srv => { 
-                        if (srv.sectionId && sectionMap[srv.sectionId]) {
-                            sectionMap[srv.sectionId].children.push({ ...srv, type: 'service' }); 
-                        }
-                    });
-                }
-                
-                const rootNodes = [];
-                if (Array.isArray(sections)) {
-                    sections.forEach(sec => { 
-                        if (sec.parentId && sectionMap[sec.parentId]) {
-                            sectionMap[sec.parentId].children.push(sectionMap[sec.id]); 
-                        } else {
-                            rootNodes.push(sectionMap[sec.id]); 
-                        }
-                    });
-                }
-                setTree(rootNodes);
-            } catch (err) { 
-                console.error(err); 
-            } finally { 
-                setLoading(false); 
+            });
+        }
+
+        const sectionMap = {};
+        actualSections.forEach(sec => { 
+            sectionMap[sec.id] = { ...sec, children: [], type: 'section' }; 
+        });
+        
+        actualServices.forEach(srv => { 
+            if (srv.sectionId && sectionMap[srv.sectionId]) {
+                sectionMap[srv.sectionId].children.push({ ...srv, type: 'service' }); 
             }
+        });
+        
+        const rootNodes = [];
+        actualSections.forEach(sec => { 
+            if (sec.parentId && sectionMap[sec.parentId]) {
+                sectionMap[sec.parentId].children.push(sectionMap[sec.id]); 
+            } else {
+                rootNodes.push(sectionMap[sec.id]); 
+            }
+        });
+
+        const filterAndSortTree = (nodes) => {
+            const filtered = nodes.filter(node => {
+                if (node.type === 'service') return true; 
+                if (node.children && node.children.length > 0) {
+                    node.children = filterAndSortTree(node.children);
+                    return node.children.length > 0; 
+                }
+                return false; 
+            });
+
+            return filtered.sort((a, b) => {
+                if (a.type === 'section' && b.type === 'service') return -1;
+                if (a.type === 'service' && b.type === 'section') return 1;
+                return 0;
+            });
         };
-        buildTree();
-    }, []);
-    return { tree, loading };
+
+        return filterAndSortTree(rootNodes);
+    }, [sectionsRaw, servicesData]);
+
+    return { tree, loading: loadingSections || loadingServices };
 };
 
-// --- المكونات المساعدة ---
 const SidebarItem = ({ to, icon, label, end, closeSidebar, onHover }) => (
     <NavLink 
         to={to} 
         end={end}
         onClick={closeSidebar}
-        onMouseEnter={onHover} /* 🚀 تفعيل الحدث عند مرور الماوس للتحميل المسبق */
+        onMouseEnter={onHover} 
         className={({ isActive }) => 
             `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 transition-all mb-1
             ${isActive ? 'bg-primary text-white shadow-sm' : 'text-white-50 hover-bg-dark hover-text-white'}`
@@ -144,14 +163,12 @@ const SidebarSection = ({ item, level = 0, location, closeSidebar }) => {
     );
 };
 
-// --- المكون الرئيسي ---
 const Sidebar = ({ closeSidebar }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { tree, loading } = useSidebarData();
     const { user, isSuperAdmin } = useAuth(); 
     
-    // 🚀 جلب الـ QueryClient
     const queryClient = useQueryClient();
 
     const handleLogout = () => {
@@ -159,7 +176,6 @@ const Sidebar = ({ closeSidebar }) => {
         navigate('/login');
     };
 
-    // 🚀 دوال التحميل المسبق السحرية
     const prefetchSections = () => {
         queryClient.prefetchQuery({ queryKey: ['sections'], queryFn: fetchAllSections });
     };
@@ -174,7 +190,6 @@ const Sidebar = ({ closeSidebar }) => {
 
     return (
         <div className="d-flex flex-column flex-shrink-0 p-3 text-white h-100 bg-dark">
-            {/* الهيدر والشعار */}
             <div className="d-flex align-items-center justify-content-between mb-4 px-2 pb-3 border-bottom border-secondary">
                 <div className="d-flex align-items-center gap-3">
                     <div className="bg-success rounded-3 p-2 d-flex align-items-center justify-content-center shadow">
@@ -206,7 +221,6 @@ const Sidebar = ({ closeSidebar }) => {
                             <div className="my-2 border-top border-secondary opacity-25"></div>
                             <div className="text-uppercase text-white-50 fw-bold mb-2 ps-3 mt-2" style={{ fontSize: '0.7rem' }}>إدارة النظام</div>
                             
-                            {/* 🚀 ربط دوال التحميل المسبق بالروابط */}
                             <SidebarItem to="/admin/sections" icon={<Folder2Open size={18} />} label="إدارة الأقسام" closeSidebar={closeSidebar} onHover={prefetchSections} />
                             <SidebarItem to="/admin/services" icon={<Grid size={18} />} label="إدارة الخدمات" closeSidebar={closeSidebar} onHover={prefetchServices} />
                             <SidebarItem to="/admin/schema" icon={<Diagram3 size={18} />} label="إدارة المخططات" closeSidebar={closeSidebar} />
@@ -227,13 +241,12 @@ const Sidebar = ({ closeSidebar }) => {
                         ))
                     ) : (
                         <div className="text-center py-3 text-white-50 small">
-                            لا توجد بيانات
+                            أضف خدمات ليتم عرضها هنا
                         </div>
                     )}
                 </nav>
             </div>
 
-            {/* زر تسجيل الخروج */}
             <div className="mt-auto pt-3 border-top border-secondary">
                 <button onClick={handleLogout} className="btn btn-outline-light w-100 d-flex align-items-center justify-content-center gap-2 py-2 transition-all hover-bg-danger hover-text-white border-0">
                     <BoxArrowRight size={18} />

@@ -11,7 +11,6 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
         const response = await axiosInstance.get(API_BASE, { params });
         const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
 
-        // 🚀 Senior Frontend Shield: Filter out services disguised as sections
         const cleanSections = rawData.filter(item => {
             const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
             return !isService; 
@@ -19,7 +18,6 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
 
         return cleanSections;
     } catch (error) {
-        // Safely swallow 404s (which happen when a section has no children)
         if (error.response?.status === 404) return [];
         throw error;
     }
@@ -30,21 +28,18 @@ export const fetchAllSections = async () => {
     
     const fetchRecursive = async (parentId) => {
         try {
-            // This calls fetchSectionsByParent, which already has the Shield and 404 safety
             const children = await fetchSectionsByParent(parentId);
             if (!children || children.length === 0) return;
             
             allSections.push(...children);
             
-            // Deep Recursion: fetch children of children concurrently
             const promises = children.map(child => fetchRecursive(child.id));
             await Promise.allSettled(promises);
         } catch (err) {
-            console.error("Recursion error for parent:", parentId, err);
+            // Handled silently to prevent breaking execution loops
         }
     };
 
-    // Start from the root (parentId = null)
     await fetchRecursive(null);
     return allSections;
 };
@@ -138,5 +133,4 @@ const sectionService = {
     fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
     assignChildSection, removeChildSection, getSectionServices, linkServiceToSection, removeServiceFromSection
 };
-
 export default sectionService;
