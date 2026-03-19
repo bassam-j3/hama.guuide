@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import schemaService from '../../api/services/schemaService';
+import { QUERY_KEYS } from '../../utils/queryKeys';
 import toast from 'react-hot-toast';
 
 export const useAllSchemas = () => {
     return useQuery({
-        queryKey: ['schemas'],
+        queryKey: QUERY_KEYS.schemas.all,
         queryFn: schemaService.getAllSchemas,
     });
 };
@@ -14,10 +15,10 @@ export const useSaveSchema = () => {
     
     return useMutation({
         mutationFn: ({ serviceId, fields }) => schemaService.saveSchema(serviceId, fields),
-        onSuccess: (_, variables) => {
+        onSuccess: () => {
             toast.success('تم تحديث المخطط بنجاح!');
-            queryClient.invalidateQueries({ queryKey: ['schemas'] });
-            queryClient.invalidateQueries({ queryKey: ['schema', variables.serviceId] }); 
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.schemas.all });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.services.all }); 
         },
         onError: () => {
             toast.error('فشل الحفظ. تأكد من توافق البيانات.');

@@ -1,24 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import sectionService from '../../api/services/sectionService';
+import { QUERY_KEYS } from '../../utils/queryKeys';
 import toast from 'react-hot-toast';
 
 export const useSections = (parentId = null, level = null) => {
     return useQuery({
-        queryKey: parentId !== null || level !== null ? ['sections', parentId, level] : ['sections'],
+        queryKey: QUERY_KEYS.sections.list(parentId, level),
         queryFn: () => {
             if (parentId === null && level === null) {
                 return sectionService.fetchAllSections();
             }
             return sectionService.fetchSectionsByParent(parentId, level);
-        }
+        },
+        staleTime: 5 * 60 * 1000, 
     });
 };
 
 export const useSection = (id) => {
     return useQuery({
-        queryKey: ['sections', id],
+        queryKey: QUERY_KEYS.sections.detail(id),
         queryFn: () => sectionService.getSectionById(id),
-        enabled: !!id
+        enabled: !!id,
+        staleTime: 5 * 60 * 1000,
     });
 };
 
@@ -28,7 +31,7 @@ export const useCreateSection = () => {
         mutationFn: sectionService.createSection,
         onSuccess: () => {
             toast.success('تم إضافة القسم بنجاح');
-            queryClient.invalidateQueries({ queryKey: ['sections'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
         },
         onError: () => toast.error('فشل في إضافة القسم. تأكد من صحة البيانات.')
     });
@@ -40,8 +43,7 @@ export const useUpdateSection = () => {
         mutationFn: ({ id, data }) => sectionService.updateSection(id, data),
         onSuccess: (_, variables) => {
             toast.success('تم تحديث القسم بنجاح');
-            queryClient.invalidateQueries({ queryKey: ['sections'] });
-            queryClient.invalidateQueries({ queryKey: ['sections', variables.id] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
         },
         onError: () => toast.error('فشل في تحديث القسم.')
     });
@@ -53,7 +55,7 @@ export const useDeleteSection = () => {
         mutationFn: sectionService.deleteSection,
         onSuccess: () => {
             toast.success('تم حذف القسم بنجاح');
-            queryClient.invalidateQueries({ queryKey: ['sections'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
         },
         onError: () => toast.error('فشل الحذف، القسم مرتبط ببيانات أخرى')
     });
@@ -65,7 +67,7 @@ export const useAssignChildSection = () => {
         mutationFn: ({ parentId, childId }) => sectionService.assignChildSection(parentId, childId),
         onSuccess: () => {
             toast.success('تم ربط القسم الفرعي بنجاح!');
-            queryClient.invalidateQueries({ queryKey: ['sections'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
         },
         onError: () => toast.error('فشل الربط.')
     });
@@ -77,7 +79,7 @@ export const useRemoveChildSection = () => {
         mutationFn: ({ parentId, childId }) => sectionService.removeChildSection(parentId, childId),
         onSuccess: () => {
             toast.success('تم فك الارتباط بنجاح!');
-            queryClient.invalidateQueries({ queryKey: ['sections'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
         },
         onError: () => toast.error('فشل فك الارتباط.')
     });
@@ -85,9 +87,10 @@ export const useRemoveChildSection = () => {
 
 export const useSectionServices = (sectionId) => {
     return useQuery({
-        queryKey: ['sections', sectionId, 'services'],
+        queryKey: QUERY_KEYS.sections.services(sectionId),
         queryFn: () => sectionService.getSectionServices(sectionId),
-        enabled: !!sectionId
+        enabled: !!sectionId,
+        staleTime: 5 * 60 * 1000,
     });
 };
 
@@ -95,10 +98,10 @@ export const useLinkServiceToSection = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ sectionId, serviceId }) => sectionService.linkServiceToSection(sectionId, serviceId),
-        onSuccess: (_, variables) => {
+        onSuccess: () => {
             toast.success('تم ربط الخدمة بالقسم بنجاح!');
-            queryClient.invalidateQueries({ queryKey: ['sections'] });
-            queryClient.invalidateQueries({ queryKey: ['services'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.services.all });
         },
         onError: () => toast.error('فشل ربط الخدمة. تأكد من البيانات.')
     });
@@ -110,8 +113,8 @@ export const useRemoveServiceFromSection = () => {
         mutationFn: ({ serviceId }) => sectionService.removeServiceFromSection(serviceId),
         onSuccess: () => {
             toast.success('تم فك ارتباط الخدمة بنجاح');
-            queryClient.invalidateQueries({ queryKey: ['sections'] });
-            queryClient.invalidateQueries({ queryKey: ['services'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.services.all });
         },
         onError: () => toast.error('فشل فك ارتباط الخدمة.')
     });

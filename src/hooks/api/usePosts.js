@@ -6,11 +6,12 @@ import {
     deletePostREST,
     deletePostRating
 } from '../../api/services/postService';
+import { QUERY_KEYS } from '../../utils/queryKeys';
 import toast from 'react-hot-toast';
 
 export const usePostsBySlug = (serviceSlug) => {
     return useQuery({
-        queryKey: ['posts', serviceSlug],
+        queryKey: QUERY_KEYS.posts.all(serviceSlug),
         queryFn: () => fetchPostsByServiceSlug(serviceSlug),
         enabled: !!serviceSlug, 
     });
@@ -22,7 +23,7 @@ export const useCreatePost = (serviceSlug) => {
         mutationFn: (postData) => createPostREST(serviceSlug, postData),
         onSuccess: () => {
             toast.success('تم نشر البوست بنجاح!');
-            queryClient.invalidateQueries({ queryKey: ['posts', serviceSlug] }); 
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.posts.all(serviceSlug) }); 
         },
         onError: (error) => {
             const errorMsg = error.response?.data?.detail || "فشل حفظ البوست.";
@@ -37,7 +38,7 @@ export const useDeletePost = (serviceSlug) => {
         mutationFn: (postId) => deletePostREST(serviceSlug, postId),
         onSuccess: () => {
             toast.success('تم الحذف بنجاح');
-            queryClient.invalidateQueries({ queryKey: ['posts', serviceSlug] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.posts.all(serviceSlug) });
         },
         onError: () => toast.error('فشل الحذف.')
     });
@@ -49,7 +50,7 @@ export const useResetPostRating = (serviceSlug) => {
         mutationFn: deletePostRating,
         onSuccess: () => {
             toast.success('تم مسح التقييم بنجاح');
-            queryClient.invalidateQueries({ queryKey: ['posts', serviceSlug] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.posts.all(serviceSlug) });
         },
         onError: () => toast.error('فشل مسح التقييم.')
     });

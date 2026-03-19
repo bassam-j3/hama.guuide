@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import { Modal, Button, Form, Badge } from 'react-bootstrap';
 import { PersonPlus, PencilSquare, Trash, PersonBadge, People, SortAlphaDown, SortAlphaUp } from 'react-bootstrap-icons';
 import { userService } from '../../api/services/userService';
@@ -8,15 +8,13 @@ import Pagination from '../../components/common/Pagination';
 import TableSkeleton from '../../components/common/TableSkeleton';
 import toast from 'react-hot-toast'; 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-// 🚀 أداة الـ Toast المخصصة
+import { QUERY_KEYS } from '../../utils/queryKeys';
 import { confirmAction } from '../../utils/alerts';
 
 const UsersManagementPage = () => {
     const { triggerGlobalRefresh } = useOutletContext(); 
     const queryClient = useQueryClient();
     
-    // 🚀 حالات الترقيم والترتيب
     const [currentPage, setCurrentPage] = useState(1);
     const [sortBy, setSortBy] = useState('userName');
     const [sortAsc, setSortAsc] = useState(true);
@@ -28,9 +26,8 @@ const UsersManagementPage = () => {
     const initialFormState = { userName: '', email: '', phoneNumber: '', password: '', roles: ['Admin'] };
     const [formData, setFormData] = useState(initialFormState);
 
-    // 🚀 جلب البيانات مع إرسال بارامترات الترتيب للـ Service
     const { data: usersData, isLoading, isError } = useQuery({
-        queryKey: ['users', currentPage, sortBy, sortAsc],
+        queryKey: QUERY_KEYS.users.list(currentPage, sortBy, sortAsc),
         queryFn: () => userService.getAllUsers(currentPage, PAGE_SIZE, sortBy, sortAsc),
         placeholderData: (previousData) => previousData, 
     });
@@ -42,7 +39,7 @@ const UsersManagementPage = () => {
         mutationFn: (data) => isEditing ? userService.updateUser(currentUser.id, data) : userService.createUser(data),
         onSuccess: () => {
             toast.success("تم حفظ البيانات بنجاح!");
-            queryClient.invalidateQueries(['users']);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users.all });
             triggerGlobalRefresh();
             setShowModal(false);
         },
@@ -61,7 +58,7 @@ const UsersManagementPage = () => {
         mutationFn: userService.deleteUser,
         onSuccess: () => {
             toast.success("تم حذف المستخدم بنجاح!");
-            queryClient.invalidateQueries(['users']);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users.all });
             triggerGlobalRefresh();
         }
     });
@@ -76,7 +73,6 @@ const UsersManagementPage = () => {
         setShowModal(true);
     };
 
-    // دالة لتغيير الترتيب عند الضغط على رأس الجدول
     const toggleSort = (field) => {
         if (sortBy === field) {
             setSortAsc(!sortAsc);
@@ -102,7 +98,6 @@ const UsersManagementPage = () => {
                     <table className="table table-hover align-middle mb-0">
                         <thead className="bg-light">
                             <tr>
-                                {/* 🚀 رؤوس جداول قابلة للضغط للترتيب */}
                                 <th className="cursor-pointer user-select-none" onClick={() => toggleSort('userName')}>
                                     المستخدم {sortBy === 'userName' && (sortAsc ? <SortAlphaDown className="text-primary ms-1" /> : <SortAlphaUp className="text-primary ms-1" />)}
                                 </th>
@@ -127,8 +122,6 @@ const UsersManagementPage = () => {
                                     <td className="text-center">
                                         <div className="d-flex justify-content-center gap-2">
                                             <button className="btn btn-sm btn-light text-primary" onClick={() => handleShow(user)}><PencilSquare /></button>
-                                            
-                                            {/* 🚀 استخدام Toast للحذف */}
                                             <button 
                                                 className="btn btn-sm btn-light text-danger" 
                                                 onClick={() => confirmAction(`هل أنت متأكد من حذف المستخدم "${user.userName}"؟`, () => deleteMutation.mutate(user.id))}
@@ -184,4 +177,5 @@ const UsersManagementPage = () => {
         </div>
     );
 };
+
 export default UsersManagementPage;

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
     House, Grid, Gear, BoxArrowRight, 
     ChevronDown, PatchCheck, Collection, FileText, People, XLg, 
@@ -12,74 +11,43 @@ import { fetchAllSections } from '../../api/services/sectionService';
 import { userService } from '../../api/services/userService';
 import { authService } from '../../api/services/authConfig';
 import { useAuth } from '../../hooks/useAuth'; 
+import { useQuery, useQueryClient } from '@tanstack/react-query'; 
+import { QUERY_KEYS } from '../../utils/queryKeys';
 
 const useSidebarData = () => {
-    const { data: sectionsRaw, isLoading: loadingSections } = useQuery({
-        queryKey: ['sections'],
-        queryFn: fetchAllSections
+    const { data: sectionsData, isLoading: loadingSections } = useQuery({
+        queryKey: QUERY_KEYS.sections.list(null, null),
+        queryFn: fetchAllSections,
     });
 
     const { data: servicesData, isLoading: loadingServices } = useQuery({
-        queryKey: ['services'],
-        queryFn: fetchAllServices
+        queryKey: QUERY_KEYS.services.list(),
+        queryFn: fetchAllServices,
     });
 
     const tree = useMemo(() => {
-        const actualSections = [];
-        const servicesRaw = Array.isArray(servicesData) ? servicesData : (servicesData?.items || []);
-        const actualServices = [...servicesRaw];
-
-        if (Array.isArray(sectionsRaw)) {
-            sectionsRaw.forEach(item => {
-                if (item.sectionId || item.discriminator === 'Service') {
-                    if (!actualServices.find(s => s.id === item.id)) {
-                        actualServices.push(item);
-                    }
-                } else {
-                    actualSections.push(item);
-                }
-            });
-        }
-
-        const sectionMap = {};
-        actualSections.forEach(sec => { 
-            sectionMap[sec.id] = { ...sec, children: [], type: 'section' }; 
-        });
+        const sections = Array.isArray(sectionsData) ? sectionsData : (sectionsData?.items || []);
+        const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || []);
         
-        actualServices.forEach(srv => { 
+        const sectionMap = {};
+        sections.forEach(sec => { sectionMap[sec.id] = { ...sec, children: [], type: 'section' }; });
+        
+        services.forEach(srv => { 
             if (srv.sectionId && sectionMap[srv.sectionId]) {
                 sectionMap[srv.sectionId].children.push({ ...srv, type: 'service' }); 
             }
         });
         
         const rootNodes = [];
-        actualSections.forEach(sec => { 
+        sections.forEach(sec => { 
             if (sec.parentId && sectionMap[sec.parentId]) {
                 sectionMap[sec.parentId].children.push(sectionMap[sec.id]); 
             } else {
                 rootNodes.push(sectionMap[sec.id]); 
             }
         });
-
-        const filterAndSortTree = (nodes) => {
-            const filtered = nodes.filter(node => {
-                if (node.type === 'service') return true; 
-                if (node.children && node.children.length > 0) {
-                    node.children = filterAndSortTree(node.children);
-                    return node.children.length > 0; 
-                }
-                return false; 
-            });
-
-            return filtered.sort((a, b) => {
-                if (a.type === 'section' && b.type === 'service') return -1;
-                if (a.type === 'service' && b.type === 'section') return 1;
-                return 0;
-            });
-        };
-
-        return filterAndSortTree(rootNodes);
-    }, [sectionsRaw, servicesData]);
+        return rootNodes;
+    }, [sectionsData, servicesData]);
 
     return { tree, loading: loadingSections || loadingServices };
 };
@@ -177,15 +145,15 @@ const Sidebar = ({ closeSidebar }) => {
     };
 
     const prefetchSections = () => {
-        queryClient.prefetchQuery({ queryKey: ['sections'], queryFn: fetchAllSections });
+        queryClient.prefetchQuery({ queryKey: QUERY_KEYS.sections.list(null, null), queryFn: fetchAllSections });
     };
 
     const prefetchServices = () => {
-        queryClient.prefetchQuery({ queryKey: ['services'], queryFn: fetchAllServices });
+        queryClient.prefetchQuery({ queryKey: QUERY_KEYS.services.list(), queryFn: fetchAllServices });
     };
 
     const prefetchUsers = () => {
-        queryClient.prefetchQuery({ queryKey: ['users', 1], queryFn: () => userService.getAllUsers(1, 10) });
+        queryClient.prefetchQuery({ queryKey: QUERY_KEYS.users.list(1, 'userName', true), queryFn: () => userService.getAllUsers(1, 10, 'userName', true) });
     };
 
     return (
@@ -241,7 +209,7 @@ const Sidebar = ({ closeSidebar }) => {
                         ))
                     ) : (
                         <div className="text-center py-3 text-white-50 small">
-                            أضف خدمات ليتم عرضها هنا
+                            لا توجد بيانات
                         </div>
                     )}
                 </nav>

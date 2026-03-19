@@ -1,39 +1,47 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'; // 🚀 استيراد أدوات React Query
-import App from '../../App'; // المسار الصحيح بناءً على وجود الملف في src/api/__tests__
+import App from '../../App';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mock لـ ResizeObserver الذي يتطلبه أحياناً Bootstrap أو Leaflet
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
+// 1. Mock the specific query keys explicitly to prevent "undefined" errors
+vi.mock('../../utils/queryKeys', () => ({
+    QUERY_KEYS: {
+        sections: { list: vi.fn(() => ['sections']), all: ['sections'] },
+        services: { list: vi.fn(() => ['services']), all: ['services'] },
+        users: { list: vi.fn(() => ['users']) },
+    }
 }));
 
-// Mock للمسارات لمنع مشاكل التحميل الكسول (Lazy Loading) في بيئة الاختبار
-vi.mock('../../components/auth/LoginPage', () => ({ default: () => <div>Login Page</div> }));
+// 2. Mock child components that make heavy API calls to isolate the test to the Router logic
+vi.mock('../../components/common/Sidebar', () => ({
+    default: () => <div data-testid="mock-sidebar">Sidebar Mock</div>
+}));
 
-// 🚀 إنشاء QueryClient مخصص للاختبارات فقط لكي لا يتذمر Sidebar
-const createTestQueryClient = () => new QueryClient({
+vi.mock('../../components/auth/LoginPage', () => ({
+    default: () => <div data-testid="mock-login">Login Page</div>
+}));
+
+vi.mock('../../layouts/DashboardLayout', () => ({
+    default: () => <div data-testid="mock-dashboard-layout">Dashboard Layout</div>
+}));
+
+const queryClient = new QueryClient({
     defaultOptions: {
-        queries: {
-            retry: false, // إيقاف إعادة المحاولة في الاختبارات لتسريعها
-        },
+        queries: { retry: false },
     },
 });
 
 describe('App Router & Lazy Loading', () => {
     it('يجب أن يعرض التطبيق بنجاح دون الانهيار بسبب نقص الـ Providers', () => {
-        const testQueryClient = createTestQueryClient();
-
-        const { container } = render(
-            <QueryClientProvider client={testQueryClient}>
+        render(
+            <QueryClientProvider client={queryClient}>
                 <App />
             </QueryClientProvider>
         );
 
-        // إذا وصل إلى هنا ولم ينهار بسبب Error Boundary أو QueryClient، فالاختبار ناجح
-        expect(container).toBeInTheDocument();
+        // التطبيق يقوم بالتحويل التلقائي إلى /admin
+        // وبما أننا قمنا بمحاكاة DashboardLayout فإنه سيتوقف هنا ويعرضه
+        expect(screen.getByTestId('mock-dashboard-layout')).toBeInTheDocument();
     });
 });

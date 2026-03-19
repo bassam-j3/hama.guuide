@@ -1,60 +1,74 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import serviceService from '../../api/services/serviceService';
+import {
+  fetchAllServices,
+  fetchServiceById,
+  createService,
+  updateService,
+  deleteService
+} from '../../api/services/serviceService';
+import { QUERY_KEYS } from '../../utils/queryKeys';
 import toast from 'react-hot-toast';
 
 export const useServices = () => {
-    return useQuery({
-        queryKey: ['services'],
-        queryFn: serviceService.fetchAllServices,
-        staleTime: 5 * 60 * 1000,
-    });
+  return useQuery({
+    queryKey: QUERY_KEYS.services.list(),
+    queryFn: fetchAllServices,
+  });
 };
 
 export const useService = (id) => {
-    return useQuery({
-        queryKey: ['services', id],
-        queryFn: () => serviceService.fetchServiceById(id),
-        enabled: !!id,
-        staleTime: 5 * 60 * 1000,
-    });
+  return useQuery({
+    queryKey: QUERY_KEYS.services.detail(id),
+    queryFn: () => fetchServiceById(id),
+    enabled: !!id,
+  });
 };
 
 export const useCreateService = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: serviceService.createService,
-        onSuccess: () => {
-            toast.success('تم إنشاء الخدمة بنجاح!');
-            queryClient.invalidateQueries({ queryKey: ['services'] });
-            queryClient.invalidateQueries({ queryKey: ['sections'] }); // Invalidate sections tree if nested
-        },
-        onError: (err) => toast.error(err.message || 'فشل في إنشاء الخدمة.')
-    });
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createService,
+    onSuccess: () => {
+      toast.success('تم إضافة الخدمة بنجاح');
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.services.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.detail || 'فشل في إضافة الخدمة. تأكد من صحة البيانات.');
+    }
+  });
 };
 
 export const useUpdateService = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, data }) => serviceService.updateService(id, data),
-        onSuccess: (_, variables) => {
-            toast.success('تم حفظ تفاصيل الخدمة الأساسية!');
-            queryClient.invalidateQueries({ queryKey: ['services'] });
-            queryClient.invalidateQueries({ queryKey: ['services', variables.id] });
-            queryClient.invalidateQueries({ queryKey: ['sections'] }); 
-        },
-        onError: (err) => toast.error(err.message || 'فشل التحديث. تأكد من البيانات.')
-    });
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }) => updateService(id, data),
+    onSuccess: () => {
+      toast.success('تم تحديث الخدمة بنجاح');
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.services.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.detail || 'فشل في تحديث الخدمة.');
+    }
+  });
 };
 
 export const useDeleteService = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: serviceService.deleteService,
-        onSuccess: () => {
-            toast.success('تم حذف الخدمة بنجاح!');
-            queryClient.invalidateQueries({ queryKey: ['services'] });
-            queryClient.invalidateQueries({ queryKey: ['sections'] });
-        },
-        onError: () => toast.error('فشل في حذف الخدمة.')
-    });
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteService,
+    onSuccess: () => {
+      toast.success('تم حذف الخدمة بنجاح');
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.services.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
+    },
+    onError: (err) => {
+      if (err.response?.status === 409 || err.response?.status === 400) {
+        toast.error('لا يمكن حذف الخدمة لارتباطها ببيانات أخرى (مثل البوستات أو المخططات).');
+      } else {
+        toast.error('فشل الحذف. الرجاء المحاولة لاحقاً.');
+      }
+    }
+  });
 };
