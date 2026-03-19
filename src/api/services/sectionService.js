@@ -11,8 +11,9 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
         const response = await axiosInstance.get(API_BASE, { params });
         const rawData = Array.isArray(response.data) ? response.data : (response.data?.items || []);
 
+        // 🚀 Senior Frontend Shield: Upgraded to catch "type": "Service" based on backend JSON
         const cleanSections = rawData.filter(item => {
-            const isService = item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
+            const isService = item.type === 'Service' || item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
             return !isService; 
         });
 
@@ -133,4 +134,5 @@ const sectionService = {
     fetchSectionsByParent, fetchAllSections, getSectionById, createSection, updateSection, deleteSection, 
     assignChildSection, removeChildSection, getSectionServices, linkServiceToSection, removeServiceFromSection
 };
+
 export default sectionService;
