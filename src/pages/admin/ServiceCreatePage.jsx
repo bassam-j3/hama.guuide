@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
-import { PlusCircle, Trash, Save, ArrowRight, InfoCircle, Link45deg, Image as ImageIcon } from 'react-bootstrap-icons';
+import React, { useState } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import { InfoCircle, Link45deg, Image as ImageIcon, ArrowRight, Trash } from 'react-bootstrap-icons';
 import { createService } from '../../api/services/serviceService';
-import { fetchAllSections } from '../../api/services/sectionService';
 import { uploadFile } from '../../api/services/fileService';
 import { getImageUrl } from '../../api/axiosConfig';
 import schemaService from '../../api/services/schemaService'; 
-import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import SectionTreePicker from '../../components/sections/SectionTreePicker';
 import toast from 'react-hot-toast'; 
 
 const getPresentationOptions = (fieldType) => {
@@ -28,11 +27,9 @@ const FIELD_TYPES = ["String", "Int", "DateTime", "Date", "Timespan", "Bool", "F
 
 const ServiceCreatePage = () => {
     const navigate = useNavigate();
-    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+    const { triggerGlobalRefresh } = useOutletContext();
 
     const [formData, setFormData] = useState({ title: '', description: '', slug: '', imageUrl: '', sectionId: '', schema: [] });
-    const [sections, setSections] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState(null);
@@ -49,19 +46,9 @@ const ServiceCreatePage = () => {
         });
     };
 
-    useEffect(() => {
-        const load = async () => { 
-            try { 
-                const data = await fetchAllSections();
-                setSections(Array.isArray(data) ? data : (data?.items || data?.data || [])); 
-            } catch (e) { 
-                setLoadError('خطأ بالاتصال بالسيرفر.'); 
-            } finally { 
-                setLoading(false); 
-            } 
-        };
-        load();
-    }, []);
+    const handleSectionChange = (val) => {
+        setFormData(prev => ({ ...prev, sectionId: val }));
+    };
 
     const addField = () => setFormData(p => ({ ...p, schema: [...p.schema, { fieldName: "", fieldType: "String", isRequired: false, presentation: getPresentationOptions("String")[0].value }] }));
     const updateField = (i, k, v) => setFormData(p => { const s = [...p.schema]; s[i][k] = k === 'fieldName' ? v.replace(/\s+/g, '') : v; return { ...p, schema: s }; });
@@ -85,7 +72,8 @@ const ServiceCreatePage = () => {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault(); setSubmitting(true);
+        e.preventDefault(); 
+        setSubmitting(true);
         const toastId = toast.loading('جاري إنشاء الخدمة والمخطط...'); 
         try {
             if (!formData.sectionId) throw new Error("اختر القسم.");
@@ -99,18 +87,15 @@ const ServiceCreatePage = () => {
             }
             
             toast.success('تم إنشاء الخدمة بنجاح!', { id: toastId }); 
-            
-            triggerGlobalRefresh(); // 🚀 إجبار الشاشة على التحديث الشامل بعد النجاح
-
+            triggerGlobalRefresh(); 
             setTimeout(() => navigate('/admin/services'), 1500);
         } catch (err) { 
+            setLoadError(err.message || "فشل الحفظ.");
             toast.error(err.message || "فشل الحفظ.", { id: toastId }); 
         } finally { 
             setSubmitting(false); 
         }
     };
-
-    if (loading) return <LoadingSpinner message="تحميل..." />;
 
     return (
         <div className="service-create-page animate-fade-in text-end" dir="rtl">
@@ -127,10 +112,7 @@ const ServiceCreatePage = () => {
                         <h6 className="fw-bold mb-4 text-success border-bottom pb-2"><InfoCircle className="me-1"/> أساسيات</h6>
                         <div className="mb-3">
                             <label className="form-label fw-bold small">القسم المرتبط <span className="text-danger">*</span></label>
-                            <select className="form-select" name="sectionId" value={formData.sectionId} onChange={handleChange} required>
-                                <option value="">-- اختر القسم --</option>
-                                {sections.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-                            </select>
+                            <SectionTreePicker value={formData.sectionId} onChange={handleSectionChange} />
                         </div>
                         <div className="row g-2 mb-3">
                             <div className="col-12 col-md-6">
@@ -148,7 +130,7 @@ const ServiceCreatePage = () => {
                         <div className="mb-4 bg-light p-3 rounded border border-dashed text-center">
                             <label className="form-label fw-bold small d-block text-end mb-2">أيقونة</label>
                             <div className="d-flex align-items-center gap-3">
-                                <div className="bg-white border rounded p-1 flex-shrink-0" style={{width: 50, height: 50}}>{formData.imageUrl ? <img src={getImageUrl(formData.imageUrl)} className="w-100 h-100 object-fit-cover"/> : <ImageIcon className="opacity-25 mt-1" size={20}/>}</div>
+                                <div className="bg-white border rounded p-1 flex-shrink-0" style={{width: 50, height: 50}}>{formData.imageUrl ? <img src={getImageUrl(formData.imageUrl)} alt="" className="w-100 h-100 object-fit-cover"/> : <ImageIcon className="opacity-25 mt-1" size={20}/>}</div>
                                 <input type="file" className="form-control form-control-sm" onChange={handleFileChange} accept="image/*" disabled={uploading}/>
                             </div>
                         </div>

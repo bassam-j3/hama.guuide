@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams, useOutletContext } from 'react-router-dom'; // 🚀 استيراد useOutletContext
-import { Save, ArrowRight, Link45deg, InfoCircle, Image as ImageIcon, Trash } from 'react-bootstrap-icons';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom'; 
+import { ArrowRight, Link45deg, InfoCircle, Image as ImageIcon, Trash } from 'react-bootstrap-icons';
 import { fetchServiceById, updateService } from '../../api/services/serviceService';
-import { fetchAllSections } from '../../api/services/sectionService'; 
 import { uploadFile } from '../../api/services/fileService'; 
 import schemaService from '../../api/services/schemaService'; 
 import { getImageUrl } from '../../api/axiosConfig'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner'; 
 import ErrorMessage from '../../components/common/ErrorMessage'; 
+import SectionTreePicker from '../../components/sections/SectionTreePicker';
 import toast from 'react-hot-toast'; 
 
 const getPresentationOptions = (fieldType) => {
@@ -29,40 +29,44 @@ const FIELD_TYPES = ["String", "Int", "DateTime", "Date", "Timespan", "Bool", "F
 const ServiceEditPage = () => {
     const { id } = useParams(); 
     const navigate = useNavigate();
-    const { triggerGlobalRefresh } = useOutletContext(); // 🚀 استخراج دالة التحديث الشامل
+    const { triggerGlobalRefresh } = useOutletContext(); 
 
     const [formData, setFormData] = useState({ title: '', description: '', slug: '', imageUrl: '', sectionId: '', schema: [] });
-    const [sections, setSections] = useState([]); 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState(null);
 
-    const renderSectionOptions = (nodes, parentId = null, level = 0) => nodes.filter(n => n.parentId === parentId).map(n => <React.Fragment key={n.id}><option value={n.id}>{'\u00A0\u00A0\u00A0\u00A0'.repeat(level)}{level > 0 ? '└─ ' : ''}{n.title}</option>{renderSectionOptions(nodes, n.id, level + 1)}</React.Fragment>);
-
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
-                const [sectionData, serviceData] = await Promise.all([fetchAllSections(), fetchServiceById(id)]);
-                
-                const secs = Array.isArray(sectionData) ? sectionData : (sectionData?.items || sectionData?.data || []);
-                setSections(secs);
+                const serviceData = await fetchServiceById(id);
 
                 let rawSchema = [];
                 try { rawSchema = (await schemaService.getSchemaByService(id))?.schema || (await schemaService.getSchemaByService(id)) || []; } catch (e) { }
                 if (rawSchema.length === 0 && serviceData.schema) rawSchema = serviceData.schema;
 
                 setFormData({
-                    title: serviceData.title || '', description: serviceData.description || '', slug: serviceData.slug || '', imageUrl: serviceData.imageUrl || '', sectionId: serviceData.sectionId || serviceData.SectionId || '', 
+                    title: serviceData.title || '', 
+                    description: serviceData.description || '', 
+                    slug: serviceData.slug || '', 
+                    imageUrl: serviceData.imageUrl || '', 
+                    sectionId: serviceData.sectionId || serviceData.SectionId || '', 
                     schema: Array.isArray(rawSchema) ? rawSchema.map(f => ({ ...f, fieldType: f.fieldType || "String", presentation: f.presentation || f.Presentation || getPresentationOptions(f.fieldType || "String")[0].value })) : []
                 });
-            } catch (err) { setLoadError('فشل جلب البيانات.'); } finally { setLoading(false); }
+            } catch (err) { 
+                setLoadError('فشل جلب البيانات.'); 
+            } finally { 
+                setLoading(false); 
+            }
         };
         loadData();
     }, [id]);
 
     const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.name === 'slug' ? e.target.value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF\-]+/g, '').replace(/\-\-+/g, '-') : e.target.value }));
+    const handleSectionChange = (val) => setFormData(prev => ({ ...prev, sectionId: val }));
+
     const addField = () => setFormData(p => ({ ...p, schema: [...p.schema, { fieldName: "", fieldType: "String", isRequired: false, presentation: getPresentationOptions("String")[0].value }] }));
     const updateField = (i, k, v) => setFormData(p => { const s = [...p.schema]; s[i][k] = k === 'fieldName' ? v.replace(/\s+/g, '') : v; return { ...p, schema: s }; });
     const removeField = (i) => setFormData(p => ({ ...p, schema: p.schema.filter((_, idx) => idx !== i) }));
@@ -92,10 +96,11 @@ const ServiceEditPage = () => {
             await schemaService.saveSchema(id, formData.schema.filter(f => f.fieldName.trim() !== "")).catch(console.warn);
             toast.success('تم الحفظ بنجاح!', { id: toastId }); 
             
-            triggerGlobalRefresh(); // 🚀 استدعاء التحديث الشامل بعد النجاح
+            triggerGlobalRefresh(); 
 
             setTimeout(() => navigate('/admin/services'), 1500); 
         } catch (err) { 
+            setLoadError("فشل التحديث. تأكد من توافق البيانات.");
             toast.error("فشل التحديث. تأكد من توافق البيانات.", { id: toastId }); 
         } finally { setSubmitting(false); }
     };
@@ -105,7 +110,7 @@ const ServiceEditPage = () => {
     return (
         <div className="service-edit animate-fade-in text-end" dir="rtl">
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                <div><h3 className="fw-bold mb-1">تعديل الخدمة</h3><p className="text-muted small mb-0">تعديل بيانات والمخطط.</p></div>
+                <div><h3 className="fw-bold mb-1">تعديل الخدمة</h3><p className="text-muted small mb-0">تعديل البيانات والمخطط.</p></div>
                 <button className="btn btn-outline-secondary btn-sm w-100 w-md-auto" onClick={() => navigate('/admin/services')}><ArrowRight className="me-1" /> عودة</button>
             </div>
 
@@ -117,10 +122,7 @@ const ServiceEditPage = () => {
                         <h6 className="fw-bold mb-4 text-success border-bottom pb-2"><InfoCircle className="me-1"/> الأساسيات</h6>
                         <div className="mb-3">
                             <label className="form-label fw-bold small">القسم</label>
-                            <select className="form-select" name="sectionId" value={formData.sectionId} onChange={handleChange}>
-                                <option value="">-- بدون قسم --</option>
-                                {renderSectionOptions(sections)}
-                            </select>
+                            <SectionTreePicker value={formData.sectionId} onChange={handleSectionChange} />
                         </div>
                         <div className="row g-2 mb-3">
                             <div className="col-12 col-md-6"><label className="form-label fw-bold small">الاسم</label><input type="text" className="form-control" name="title" value={formData.title} onChange={handleChange} required /></div>
@@ -128,7 +130,7 @@ const ServiceEditPage = () => {
                         </div>
                         <div className="mb-4 bg-light p-3 rounded border border-dashed text-center">
                             <div className="d-flex align-items-center gap-3">
-                                <div className="bg-white border rounded p-1 flex-shrink-0" style={{width: 50, height: 50}}>{formData.imageUrl ? <img src={getImageUrl(formData.imageUrl)} className="w-100 h-100 object-fit-cover"/> : <ImageIcon className="opacity-25" size={20}/>}</div>
+                                <div className="bg-white border rounded p-1 flex-shrink-0" style={{width: 50, height: 50}}>{formData.imageUrl ? <img src={getImageUrl(formData.imageUrl)} alt="" className="w-100 h-100 object-fit-cover"/> : <ImageIcon className="opacity-25" size={20}/>}</div>
                                 <input type="file" className="form-control form-control-sm" onChange={handleFileChange} disabled={uploading}/>
                             </div>
                         </div>
