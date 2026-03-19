@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useOutletContext } from 'react-router-dom'; 
 import { ArrowRight, Link45deg, InfoCircle, Image as ImageIcon, Trash } from 'react-bootstrap-icons';
-import { fetchServiceById, updateService } from '../../api/services/serviceService';
+import { useService, useUpdateService } from '../../hooks/api/useServices';
 import { uploadFile } from '../../api/services/fileService'; 
 import schemaService from '../../api/services/schemaService'; 
+import sectionService from '../../api/services/sectionService';
 import { getImageUrl } from '../../api/axiosConfig'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner'; 
 import ErrorMessage from '../../components/common/ErrorMessage'; 
@@ -30,39 +31,69 @@ const ServiceEditPage = () => {
     const { id } = useParams(); 
     const navigate = useNavigate();
     const { triggerGlobalRefresh } = useOutletContext(); 
+    
+    // استخدام React Query لجلب البيانات
+    const { data: serviceData, isLoading: serviceLoading, isError: serviceError } = useService(id);
+    const updateMutation = useUpdateService();
 
     const [formData, setFormData] = useState({ title: '', description: '', slug: '', imageUrl: '', sectionId: '', schema: [] });
-    const [loading, setLoading] = useState(true);
+    const [originalSectionId, setOriginalSectionId] = useState(null);
+    
+    const [schemaLoading, setSchemaLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState(null);
 
+    // تعبئة البيانات (Pre-fill) عند وصولها من السيرفر
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLoading(true);
-                const serviceData = await fetchServiceById(id);
+        let isMounted = true;
+        const loadSchemaAndPrefill = async () => {
+            if (serviceData) {
+                try {
+                    // التقاط القسم الحالي
+                    const secId = serviceData.sectionId || serviceData.SectionId || '';
+                    setOriginalSectionId(secId);
 
-                let rawSchema = [];
-                try { rawSchema = (await schemaService.getSchemaByService(id))?.schema || (await schemaService.getSchemaByService(id)) || []; } catch (e) { }
-                if (rawSchema.length === 0 && serviceData.schema) rawSchema = serviceData.schema;
+                    let rawSchema = [];
+                    try { 
+                        const res = await schemaService.getSchemaByService(id);
+                        rawSchema = res?.schema || res || []; 
+                    } catch (e) {
+                        // تجاهل الخطأ إذا لم يكن هناك مخطط مخصص
+                    }
 
-                setFormData({
-                    title: serviceData.title || '', 
-                    description: serviceData.description || '', 
-                    slug: serviceData.slug || '', 
-                    imageUrl: serviceData.imageUrl || '', 
-                    sectionId: serviceData.sectionId || serviceData.SectionId || '', 
-                    schema: Array.isArray(rawSchema) ? rawSchema.map(f => ({ ...f, fieldType: f.fieldType || "String", presentation: f.presentation || f.Presentation || getPresentationOptions(f.fieldType || "String")[0].value })) : []
-                });
-            } catch (err) { 
-                setLoadError('فشل جلب البيانات.'); 
-            } finally { 
-                setLoading(false); 
+                    if (rawSchema.length === 0 && serviceData.schema) {
+                        rawSchema = serviceData.schema;
+                    }
+
+                    if (isMounted) {
+                        setFormData({
+                            title: serviceData.title || '', 
+                            description: serviceData.description || '', 
+                            slug: serviceData.slug || '', 
+                            imageUrl: serviceData.imageUrl || '', 
+                            sectionId: secId, 
+                            schema: Array.isArray(rawSchema) ? rawSchema.map(f => ({ 
+                                ...f, 
+                                fieldType: f.fieldType || "String", 
+                                presentation: f.presentation || f.Presentation || getPresentationOptions(f.fieldType || "String")[0].value 
+                            })) : []
+                        });
+                        setSchemaLoading(false);
+                    }
+                } catch (err) {
+                    if (isMounted) {
+                        setLoadError('فشل جلب المخطط.');
+                        setSchemaLoading(false);
+                    }
+                }
             }
         };
-        loadData();
-    }, [id]);
+        
+        if (serviceData) loadSchemaAndPrefill();
+
+        return () => { isMounted = false; };
+    }, [serviceData, id]);
 
     const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.name === 'slug' ? e.target.value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF\-]+/g, '').replace(/\-\-+/g, '-') : e.target.value }));
     const handleSectionChange = (val) => setFormData(prev => ({ ...prev, sectionId: val }));
@@ -89,28 +120,52 @@ const ServiceEditPage = () => {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault(); setSubmitting(true);
-        const toastId = toast.loading('جاري حفظ التعديلات...'); 
+        e.preventDefault(); 
+        setSubmitting(true);
+        const toastId = toast.loading('جاري حفظ جميع التعديلات...'); 
         try {
-            await updateService(id, { title: formData.title, description: formData.description, slug: formData.slug, imageUrl: formData.imageUrl, sectionId: formData.sectionId === "" ? null : formData.sectionId }); 
-            await schemaService.saveSchema(id, formData.schema.filter(f => f.fieldName.trim() !== "")).catch(console.warn);
-            toast.success('تم الحفظ بنجاح!', { id: toastId }); 
+            // 1. تحديث تفاصيل الخدمة الأساسية
+            await updateMutation.mutateAsync({ id, data: { 
+                title: formData.title, 
+                description: formData.description, 
+                slug: formData.slug, 
+                imageUrl: formData.imageUrl 
+            }}); 
             
-            triggerGlobalRefresh(); 
+            // 2. تحديث ربط القسم فقط في حال قام المستخدم بتغييره
+            if (formData.sectionId !== originalSectionId) {
+                if (originalSectionId) {
+                    await sectionService.removeServiceFromSection(id).catch(() => {});
+                }
+                if (formData.sectionId) {
+                    await sectionService.linkServiceToSection(formData.sectionId, id);
+                }
+            }
 
-            setTimeout(() => navigate('/admin/services'), 1500); 
+            // 3. تحديث المخطط (Schema)
+            const cleanSchema = formData.schema.filter(f => f.fieldName.trim() !== "");
+            if (cleanSchema.length > 0) {
+                await schemaService.saveSchema(id, cleanSchema).catch(() => toast.error('تحذير: فشل حفظ المخطط'));
+            }
+            
+            toast.success('اكتمل حفظ التعديلات بنجاح!', { id: toastId }); 
+            triggerGlobalRefresh();
+            setTimeout(() => navigate('/admin/services'), 1000); 
         } catch (err) { 
             setLoadError("فشل التحديث. تأكد من توافق البيانات.");
             toast.error("فشل التحديث. تأكد من توافق البيانات.", { id: toastId }); 
-        } finally { setSubmitting(false); }
+        } finally { 
+            setSubmitting(false); 
+        }
     };
 
-    if (loading) return <LoadingSpinner message="جاري التحميل..." />;
+    if (serviceLoading || schemaLoading) return <div className="p-5"><LoadingSpinner message="جاري تحميل بيانات الخدمة..." /></div>;
+    if (serviceError) return <div className="p-5"><ErrorMessage message="تعذر تحميل بيانات الخدمة من الخادم." /></div>;
 
     return (
         <div className="service-edit animate-fade-in text-end" dir="rtl">
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                <div><h3 className="fw-bold mb-1">تعديل الخدمة</h3><p className="text-muted small mb-0">تعديل البيانات والمخطط.</p></div>
+                <div><h3 className="fw-bold mb-1">تعديل الخدمة</h3><p className="text-muted small mb-0">تعديل التفاصيل، مسار القسم، والمخطط.</p></div>
                 <button className="btn btn-outline-secondary btn-sm w-100 w-md-auto" onClick={() => navigate('/admin/services')}><ArrowRight className="me-1" /> عودة</button>
             </div>
 
@@ -121,7 +176,8 @@ const ServiceEditPage = () => {
                     <div className="card border-0 shadow-sm p-3 p-md-4 rounded-3 h-100">
                         <h6 className="fw-bold mb-4 text-success border-bottom pb-2"><InfoCircle className="me-1"/> الأساسيات</h6>
                         <div className="mb-3">
-                            <label className="form-label fw-bold small">القسم</label>
+                            <label className="form-label fw-bold small">نقل لمسار قسم مختلف</label>
+                            {/* هنا يتم تمرير formData.sectionId لتحديد القسم الحالي تلقائياً */}
                             <SectionTreePicker value={formData.sectionId} onChange={handleSectionChange} />
                         </div>
                         <div className="row g-2 mb-3">
@@ -163,7 +219,7 @@ const ServiceEditPage = () => {
                     </div>
                 </div>
                 <div className="col-12">
-                    <button type="submit" className="btn btn-success w-100 py-3 fw-bold shadow" disabled={submitting || uploading}>{submitting ? <LoadingSpinner size="sm"/> : 'حفظ التعديلات'}</button>
+                    <button type="submit" className="btn btn-success w-100 py-3 fw-bold shadow" disabled={submitting || uploading}>{submitting ? <LoadingSpinner size="sm"/> : 'حفظ التعديلات الشاملة'}</button>
                 </div>
             </form>
         </div>

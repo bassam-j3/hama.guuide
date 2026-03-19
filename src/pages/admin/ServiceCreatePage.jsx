@@ -112,6 +112,7 @@ const ServiceCreatePage = () => {
                         <h6 className="fw-bold mb-4 text-success border-bottom pb-2"><InfoCircle className="me-1"/> أساسيات</h6>
                         <div className="mb-3">
                             <label className="form-label fw-bold small">القسم المرتبط <span className="text-danger">*</span></label>
+                            {/* 👈 مكون الشجرة يظهر الأقسام ويدعم اختيار قسم محدد */}
                             <SectionTreePicker value={formData.sectionId} onChange={handleSectionChange} />
                         </div>
                         <div className="row g-2 mb-3">

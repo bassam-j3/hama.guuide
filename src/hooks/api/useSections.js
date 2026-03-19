@@ -26,39 +26,33 @@ export const useSection = (id) => {
 };
 
 export const useCreateSection = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: sectionService.createSection,
-        onSuccess: () => {
-            toast.success('تم إضافة القسم بنجاح');
-            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
-        },
-        onError: () => toast.error('فشل في إضافة القسم. تأكد من صحة البيانات.')
-    });
+  const queryClient = useQueryClient();
+  return useMutation({
+      mutationFn: sectionService.createSection,
+      onSuccess: () => {
+          toast.success('تم إضافة القسم بنجاح');
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all }); // 👈 هنا السر
+      }
+  });
 };
-
 export const useUpdateSection = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, data }) => sectionService.updateSection(id, data),
-        onSuccess: (_, variables) => {
-            toast.success('تم تحديث القسم بنجاح');
-            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
-        },
-        onError: () => toast.error('فشل في تحديث القسم.')
-    });
+  const queryClient = useQueryClient();
+  return useMutation({
+      mutationFn: ({ id, data }) => sectionService.updateSection(id, data),
+      onSuccess: (_, variables) => {
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all }); // 👈 تحديث الشجرة
+      }
+  });
 };
 
 export const useDeleteSection = () => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: sectionService.deleteSection,
-        onSuccess: () => {
-            toast.success('تم حذف القسم بنجاح');
-            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all });
-        },
-        onError: () => toast.error('فشل الحذف، القسم مرتبط ببيانات أخرى')
-    });
+  const queryClient = useQueryClient();
+  return useMutation({
+      mutationFn: sectionService.deleteSection,
+      onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all }); // 👈 تحديث الشجرة
+      }
+  });
 };
 
 export const useAssignChildSection = () => {
