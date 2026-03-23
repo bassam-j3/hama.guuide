@@ -16,7 +16,7 @@ import { buildDynamicSchema } from '../../utils/schemaBuilder';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import DynamicFieldRenderer from '../../components/posts/DynamicFieldRenderer'; 
-import PostLocationSection from '../../components/posts/PostLocationSection'; // 🚀 استيراد مكون الخريطة المعزول
+import PostLocationSection from '../../components/posts/PostLocationSection';
 
 const PostCreatePage = () => {
     const { serviceSlug } = useParams();
@@ -43,7 +43,6 @@ const PostCreatePage = () => {
     const schemaFields = Array.isArray(schemaData) ? schemaData : (schemaData?.schema || schemaData || []);
     const dynamicZodSchema = useMemo(() => buildDynamicSchema(schemaFields), [schemaFields]);
 
-    // 🚀 تم حذف watch('latitude') من هنا لإنقاذ أداء الصفحة!
     const { register, handleSubmit, control, setValue, formState: { errors, isSubmitting } } = useForm({
         resolver: zodResolver(dynamicZodSchema),
         defaultValues: { title: '', imageUrl: '', latitude: 35.1325, longitude: 36.7515, payload: {} }
@@ -53,8 +52,8 @@ const PostCreatePage = () => {
         mutationFn: (data) => createPostREST(serviceSlug, data),
         onSuccess: () => {
             toast.success('تم إنشاء البوست بنجاح!');
-            queryClient.invalidateQueries(['posts', serviceSlug]);
-            navigate(`/admin/services/${serviceSlug}/posts`);
+            queryClient.invalidateQueries({ queryKey: ['posts', serviceSlug] }); // 👈 إصلاح الكاش
+            navigate(`/admin/posts/${serviceSlug}`); // 👈 تم إصلاح رابط التوجيه هنا!
         },
         onError: (err) => toast.error(err.response?.data?.detail || 'فشل في إنشاء البوست. تأكد من البيانات.')
     });
@@ -111,7 +110,6 @@ const PostCreatePage = () => {
                                 {errors.title && <div className="invalid-feedback">{errors.title.message}</div>}
                             </div>
                             
-                            {/* 🚀 قسم الخريطة المعزول: كود أنظف وأداء مضاعف */}
                             <PostLocationSection control={control} setValue={setValue} register={register} errors={errors} />
                             
                         </div>

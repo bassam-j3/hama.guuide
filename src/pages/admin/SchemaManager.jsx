@@ -32,21 +32,18 @@ const SchemaManager = () => {
     const { data: schemasData, isLoading: loadingSchemas, isError: errorSchemas } = useAllSchemas();
     const saveMutation = useSaveSchema();
 
-    // استخراج البيانات بشكل آمن
     const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
     const schemas = Array.isArray(schemasData) ? schemasData : (schemasData?.schemas || []); 
 
     const isLoading = loadingServices || loadingSchemas;
     const hasError = errorServices || errorSchemas;
 
-    // دالة إغلاق المودال 
     const handleCloseModal = () => {
         const modalEl = document.getElementById('schemaModal');
         if (modalEl) {
             const modal = Modal.getInstance(modalEl);
             if (modal) modal.hide();
         }
-        // تنظيف إضافي لضمان عدم وجود أي بقايا
         document.body.classList.remove('modal-open');
         document.body.style.removeProperty('overflow');
         document.body.style.removeProperty('padding-right');
@@ -56,7 +53,6 @@ const SchemaManager = () => {
         setSelectedService(service); 
         setFields([]); 
 
-        // 🚀 فتح المودال مع منع تكوين الشاشة السوداء (backdrop: false)
         const modalEl = document.getElementById('schemaModal');
         if (modalEl) {
             const modal = Modal.getOrCreateInstance(modalEl, { backdrop: false });
@@ -160,28 +156,26 @@ const SchemaManager = () => {
                 </div>
             )}
 
-            {/* Modal: تمت إضافة data-bs-backdrop="false" لمنع الخلفية السوداء */}
             <div className="modal fade" id="schemaModal" tabIndex="-1" aria-hidden="true" data-bs-backdrop="false">
-                {/* تم إضافة shadow-lg للمودال لكي يبرز فوق الصفحة بما أننا أزلنا الخلفية المظلمة */}
                 <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-md-down">
                     <div className="modal-content border-0 shadow-lg" style={{boxShadow: '0 1rem 3rem rgba(0,0,0,0.175)'}}>
                         <div className="modal-header bg-light border-bottom">
                             <h5 className="modal-title fw-bold text-primary"><Gear className="me-2 mb-1"/> {selectedService?.title}</h5>
                             <button type="button" className="btn-close ms-0 me-auto" onClick={handleCloseModal}></button>
                         </div>
-                        <div className="modal-body bg-white p-3 p-md-4">
-                            <div className="fields-container overflow-x-hidden pe-1">
+                        {/* 🚀 تم إضافة minHeight هنا لضمان ارتفاع مريح للعين وعدم انضغاط الحقول */}
+                        <div className="modal-body bg-white p-3 p-md-4" style={{ minHeight: '60vh' }}>
+                            <div className="fields-container overflow-x-hidden pe-1" style={{ minHeight: '50vh' }}>
                                 {fields.map((field, index) => (
                                     <div className="card mb-3 border-0 shadow-sm border-start border-4 border-primary bg-light" key={field.id || index}>
                                         <div className="card-body p-3">
-                                            {/* 🚀 تصميم متجاوب (Responsive) أفضل بكثير */}
                                             <div className="row g-3 align-items-end">
                                                 
                                                 <div className="col-12 col-md-4 col-lg-3">
                                                     <label className="small fw-bold mb-1 text-secondary">اسم الحقل (بالانجليزية)</label>
                                                     <input 
                                                         type="text" 
-                                                        className="form-control border-0 shadow-sm" 
+                                                        className="form-control border-0 shadow-sm py-2" 
                                                         value={field.fieldName} 
                                                         dir="ltr" 
                                                         onChange={e => { const t = [...fields]; t[index].fieldName = e.target.value.replace(/\s+/g, ''); setFields(t); }} 
@@ -193,7 +187,7 @@ const SchemaManager = () => {
                                                 <div className="col-6 col-md-4 col-lg-3">
                                                     <label className="small fw-bold mb-1 text-secondary">نوع البيانات</label>
                                                     <select 
-                                                        className="form-select border-0 shadow-sm" 
+                                                        className="form-select border-0 shadow-sm py-2" 
                                                         value={field.fieldType} 
                                                         onChange={e => { const t = [...fields]; t[index].fieldType = e.target.value; t[index].presentation = getPresentationOptions(e.target.value)[0].value; setFields(t); }}
                                                     >
@@ -204,7 +198,7 @@ const SchemaManager = () => {
                                                 <div className="col-6 col-md-4 col-lg-3">
                                                     <label className="small fw-bold mb-1 text-secondary">طريقة العرض <span className="text-danger">*</span></label>
                                                     <select 
-                                                        className="form-select border-0 shadow-sm text-primary fw-bold" 
+                                                        className="form-select border-0 shadow-sm text-primary fw-bold py-2" 
                                                         required 
                                                         value={field.presentation || getPresentationOptions(field.fieldType)[0].value} 
                                                         onChange={e => { const t = [...fields]; t[index].presentation = e.target.value; setFields(t); }}
@@ -214,8 +208,7 @@ const SchemaManager = () => {
                                                 </div>
 
                                                 <div className="col-9 col-md-8 col-lg-2 mt-3 mt-lg-0">
-                                                    {/* 🚀 تصميم أفضل للـ Switch */}
-                                                    <div className="form-check form-switch mb-0 w-100 bg-white border border-light-subtle rounded p-2 d-flex justify-content-between align-items-center shadow-sm" style={{minHeight: '38px'}}>
+                                                    <div className="form-check form-switch mb-0 w-100 bg-white border border-light-subtle rounded p-2 d-flex justify-content-between align-items-center shadow-sm" style={{minHeight: '44px'}}>
                                                         <label className="small fw-bold cursor-pointer mb-0 text-dark" htmlFor={`req-${index}`}>إجباري؟</label>
                                                         <input 
                                                             className="form-check-input m-0 cursor-pointer" 
@@ -230,7 +223,7 @@ const SchemaManager = () => {
                                                 <div className="col-3 col-md-4 col-lg-1 mt-3 mt-lg-0">
                                                     <button 
                                                         className="btn btn-danger w-100 shadow-sm d-flex justify-content-center align-items-center" 
-                                                        style={{minHeight: '38px'}}
+                                                        style={{minHeight: '44px'}}
                                                         title="حذف الحقل" 
                                                         onClick={() => setFields(fields.filter((_, i) => i !== index))}
                                                     >
