@@ -1,181 +1,146 @@
-import React, { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge } from 'react-bootstrap';
-import { PersonPlus, PencilSquare, Trash, PersonBadge, People, SortAlphaDown, SortAlphaUp } from 'react-bootstrap-icons';
+import { PersonPlus, PencilSquare, Trash, PersonBadge, Envelope, Telephone, ShieldLock, People } from 'react-bootstrap-icons';
 import { userService } from '../../api/services/userService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
-import Pagination from '../../components/common/Pagination'; 
-import TableSkeleton from '../../components/common/TableSkeleton';
-import toast from 'react-hot-toast'; 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { QUERY_KEYS } from '../../utils/queryKeys';
-import { confirmAction } from '../../utils/alerts';
 
 const UsersManagementPage = () => {
-    const { triggerGlobalRefresh } = useOutletContext(); 
-    const queryClient = useQueryClient();
-    
-    const [currentPage, setCurrentPage] = useState(1);
-    const [sortBy, setSortBy] = useState('userName');
-    const [sortAsc, setSortAsc] = useState(true);
-    const PAGE_SIZE = 10;
-
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+
     const initialFormState = { userName: '', email: '', phoneNumber: '', password: '', roles: ['Admin'] };
     const [formData, setFormData] = useState(initialFormState);
 
-    const { data: usersData, isLoading, isError } = useQuery({
-        queryKey: QUERY_KEYS.users.list(currentPage, sortBy, sortAsc),
-        queryFn: () => userService.getAllUsers(currentPage, PAGE_SIZE, sortBy, sortAsc),
-        placeholderData: (previousData) => previousData, 
-    });
+    const loadUsers = async () => {
+        setLoading(true); setError(null);
+        try { const data = await userService.getAllUsers(); setUsers(Array.isArray(data) ? data : []); } 
+        catch (err) { setError("فشل تحميل المستخدمين."); } finally { setLoading(false); }
+    };
 
-    const users = usersData?.items || usersData?.data?.items || usersData || [];
-    const totalPages = usersData?.totalPages || usersData?.data?.totalPages || 1;
-
-    const userMutation = useMutation({
-        mutationFn: (data) => isEditing ? userService.updateUser(currentUser.id, data) : userService.createUser(data),
-        onSuccess: () => {
-            toast.success("تم حفظ البيانات بنجاح!");
-            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users.all });
-            triggerGlobalRefresh();
-            setShowModal(false);
-        },
-        onError: (error) => {
-            let errorMessage = "فشل الحفظ! تأكد من صحة البيانات.";
-            if (error.response?.data?.Errors && error.response.data.Errors.length > 0) {
-                errorMessage = error.response.data.Errors[0].description;
-            } else if (error.response?.data?.detail) {
-                errorMessage = error.response.data.detail;
-            }
-            toast.error(errorMessage); 
-        }
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: userService.deleteUser,
-        onSuccess: () => {
-            toast.success("تم حذف المستخدم بنجاح!");
-            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users.all });
-            triggerGlobalRefresh();
-        }
-    });
+    useEffect(() => { loadUsers(); }, []);
 
     const handleShow = (user = null) => {
+        setError(null);
         if (user) {
             setIsEditing(true); setCurrentUser(user);
-            setFormData({ userName: user.userName, email: user.email, phoneNumber: user.phoneNumber, password: '', roles: user.roles || ['Admin'] });
+            setFormData({ userName: user.userName || '', email: user.email || '', phoneNumber: user.phoneNumber || '', password: '', roles: user.roles && user.roles.length > 0 ? user.roles : ['Admin'] });
         } else {
-            setIsEditing(false); setFormData(initialFormState);
+            setIsEditing(false); setCurrentUser(null); setFormData(initialFormState);
         }
         setShowModal(true);
     };
 
-    const toggleSort = (field) => {
-        if (sortBy === field) {
-            setSortAsc(!sortAsc);
-        } else {
-            setSortBy(field);
-            setSortAsc(true);
-        }
+    const handleDelete = async (id, name) => {
+        if (!window.confirm(`حذف المستخدم "${name}"؟`)) return;
+        try { await userService.deleteUser(id); setUsers(prev => prev.filter(u => u.id !== id)); } catch (err) { alert("خطأ بالحذف."); }
     };
 
-    if (isLoading && !usersData) return <TableSkeleton columns={4} rows={5} />;
+    const handleSubmit = async (e) => {
+        e.preventDefault(); setSubmitting(true);
+        try {
+            if (isEditing) await userService.updateUser(currentUser.id, formData);
+            else await userService.createUser(formData);
+            setShowModal(false); loadUsers(); 
+        } catch (err) { alert("فشل الحفظ."); } finally { setSubmitting(false); }
+    };
+
+    if (loading) return <LoadingSpinner message="جاري تحميل المستخدمين..." />;
 
     return (
         <div className="users-page animate-fade-in text-end" dir="rtl">
-            <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-4 rounded-3 shadow-sm border flex-wrap gap-3">
-                <div><h3 className="fw-bold mb-1 text-primary"><People /> إدارة المستخدمين</h3></div>
-                <button className="btn btn-primary btn-sm px-4 fw-bold" onClick={() => handleShow(null)}><PersonPlus /> إضافة مستخدم</button>
-            </div>
-
-            {isError && <ErrorMessage message="فشل تحميل المستخدمين." />}
-
-            <div className="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
-                <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                        <thead className="bg-light">
-                            <tr>
-                                <th className="cursor-pointer user-select-none" onClick={() => toggleSort('userName')}>
-                                    المستخدم {sortBy === 'userName' && (sortAsc ? <SortAlphaDown className="text-primary ms-1" /> : <SortAlphaUp className="text-primary ms-1" />)}
-                                </th>
-                                <th>الدور</th>
-                                <th className="d-none d-md-table-cell cursor-pointer user-select-none" onClick={() => toggleSort('email')}>
-                                    الإيميل {sortBy === 'email' && (sortAsc ? <SortAlphaDown className="text-primary ms-1" /> : <SortAlphaUp className="text-primary ms-1" />)}
-                                </th>
-                                <th className="text-center">الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map(user => (
-                                <tr key={user.id}>
-                                    <td className="ps-4">
-                                        <div className="d-flex align-items-center gap-3">
-                                            <div className="bg-primary bg-opacity-10 text-primary rounded-circle p-2"><PersonBadge size={20} /></div>
-                                            <div><div className="fw-bold">{user.userName}</div><small className="text-muted">ID: {user.id?.substring(0,6)}</small></div>
-                                        </div>
-                                    </td>
-                                    <td><Badge bg="success">{user.roles?.[0] || 'Admin'}</Badge></td>
-                                    <td className="d-none d-md-table-cell small text-muted" dir="ltr">{user.email}</td>
-                                    <td className="text-center">
-                                        <div className="d-flex justify-content-center gap-2">
-                                            <button className="btn btn-sm btn-light text-primary" onClick={() => handleShow(user)}><PencilSquare /></button>
-                                            <button 
-                                                className="btn btn-sm btn-light text-danger" 
-                                                onClick={() => confirmAction(`هل أنت متأكد من حذف المستخدم "${user.userName}"؟`, () => deleteMutation.mutate(user.id))}
-                                            >
-                                                <Trash />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {/* 🚀 متجاوب: flex-wrap */}
+            <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-3 p-md-4 rounded-3 shadow-sm border flex-wrap gap-3">
+                <div>
+                    <h3 className="fw-bold mb-1 text-primary d-flex align-items-center gap-2"><People /> إدارة المستخدمين</h3>
+                    <p className="text-muted small mb-0">نظام إدارة الصلاحيات والحسابات.</p>
                 </div>
+                <button className="btn btn-primary btn-sm px-4 py-2 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2 w-100 w-md-auto" onClick={() => handleShow(null)}>
+                    <PersonPlus size={18} /> إضافة مستخدم
+                </button>
             </div>
 
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            {error && <ErrorMessage message={error} onRetry={loadUsers} />}
+
+            {!error && (
+                <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
+                    <div className="table-responsive">
+                        <table className="table table-hover align-middle mb-0">
+                            <thead className="bg-light text-secondary small text-uppercase">
+                                <tr>
+                                    <th className="ps-3 ps-md-4 py-3">المستخدم</th>
+                                    <th className="py-3">الدور (Role)</th>
+                                    {/* 🚀 إخفاء معلومات الاتصال في الجوال لتوفير المساحة */}
+                                    <th className="py-3 d-none d-md-table-cell">معلومات الاتصال</th>
+                                    <th className="text-center py-3">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {users.length > 0 ? users.map(user => (
+                                    <tr key={user.id}>
+                                        <td className="ps-3 ps-md-4">
+                                            <div className="d-flex align-items-center gap-2 gap-md-3">
+                                                <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{width: 40, height: 40}}><PersonBadge size={20} /></div>
+                                                <div>
+                                                    <div className="fw-bold text-dark">{user.userName}</div>
+                                                    {/* 🚀 إظهار الإيميل تحت الاسم في الجوال فقط */}
+                                                    <div className="d-block d-md-none small text-muted text-truncate" style={{maxWidth:'150px'}}>{user.email}</div>
+                                                    <small className="text-muted d-none d-md-block" style={{fontSize: '0.7rem'}}>ID: {user.id.substring(0,6)}..</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {user.roles && user.roles.map((role, idx) => (
+                                                <Badge key={idx} bg={role === 'SuperAdmin' ? 'danger' : (role === 'Admin' ? 'success' : 'secondary')} className="me-1 px-2 py-1">{role}</Badge>
+                                            ))}
+                                        </td>
+                                        <td className="d-none d-md-table-cell">
+                                            <div className="d-flex flex-column small">
+                                                <span className="text-muted mb-1"><Envelope className="me-1"/> {user.email}</span>
+                                                {user.phoneNumber && <span className="text-muted"><Telephone className="me-1"/> {user.phoneNumber}</span>}
+                                            </div>
+                                        </td>
+                                        <td className="text-center px-2">
+                                            <div className="d-flex justify-content-center gap-1 gap-md-2">
+                                                <button className="btn btn-sm btn-light border text-primary" onClick={() => handleShow(user)}><PencilSquare /></button>
+                                                <button className="btn btn-sm btn-light border text-danger" onClick={() => handleDelete(user.id, user.userName)}><Trash /></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )) : <tr><td colSpan="4" className="text-center py-5 text-muted">لا يوجد مستخدمين.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             <Modal show={showModal} onHide={() => setShowModal(false)} centered dir="rtl">
-                <Form onSubmit={(e) => { e.preventDefault(); userMutation.mutate(formData); }}>
-                    <Modal.Header><Modal.Title>{isEditing ? "تعديل مستخدم" : "إضافة مستخدم"}</Modal.Title></Modal.Header>
-                    <Modal.Body>
-                        <Form.Group className="mb-3">
-                            <Form.Label>الاسم</Form.Label>
-                            <Form.Control value={formData.userName} onChange={e => setFormData({...formData, userName: e.target.value})} required />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>الإيميل</Form.Label>
-                            <Form.Control type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
-                        </Form.Group>
+                {/* تم اختصار كود المودال لأنه متجاوب بطبيعته */}
+                <Modal.Header className="border-0 pb-0"><Modal.Title className="fw-bold fs-5">{isEditing ? "تعديل مستخدم" : "إضافة مستخدم"}</Modal.Title></Modal.Header>
+                <Form onSubmit={handleSubmit}>
+                    <Modal.Body className="pt-3">
+                        <Form.Group className="mb-3"><Form.Label className="small fw-bold">اسم المستخدم</Form.Label><Form.Control type="text" required value={formData.userName} onChange={e => setFormData({...formData, userName: e.target.value})} /></Form.Group>
+                        <Form.Group className="mb-3"><Form.Label className="small fw-bold">البريد الإلكتروني</Form.Label><Form.Control type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Form.Group>
+                        <Form.Group className="mb-3"><Form.Label className="small fw-bold">رقم الهاتف</Form.Label><Form.Control type="tel" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value})} /></Form.Group>
                         {!isEditing && (
-                            <Form.Group className="mb-3">
-                                <Form.Label>كلمة المرور</Form.Label>
-                                <Form.Control 
-                                    type="password" 
-                                    value={formData.password} 
-                                    onChange={e => setFormData({...formData, password: e.target.value})} 
-                                    required 
-                                    pattern=".*[^a-zA-Z0-9].*" 
-                                    title="يجب أن تحتوي كلمة المرور على حرف خاص واحد على الأقل (مثل @, #, $, !)"
-                                />
-                                <Form.Text className="text-muted small">
-                                    يجب أن تحتوي على حروف، أرقام، وحرف خاص واحد على الأقل.
-                                </Form.Text>
-                            </Form.Group>
+                            <Form.Group className="mb-3"><Form.Label className="small fw-bold">كلمة المرور</Form.Label><Form.Control type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></Form.Group>
                         )}
+                        <Form.Group className="mb-3"><Form.Label className="small fw-bold">الدور</Form.Label><Form.Select value={formData.roles[0]} onChange={e => setFormData({...formData, roles: [e.target.value]})}>
+                            <option value="User">User</option><option value="Admin">Admin</option><option value="SuperAdmin">SuperAdmin</option>
+                        </Form.Select></Form.Group>
                     </Modal.Body>
-                    <Modal.Footer>
+                    <Modal.Footer className="border-0 pt-0">
                         <Button variant="light" onClick={() => setShowModal(false)}>إلغاء</Button>
-                        <Button variant="primary" type="submit" disabled={userMutation.isPending}>{userMutation.isPending ? "جاري الحفظ..." : "حفظ"}</Button>
+                        <Button variant="primary" type="submit" disabled={submitting}>{submitting ? "حفظ..." : "تأكيد"}</Button>
                     </Modal.Footer>
                 </Form>
             </Modal>
         </div>
     );
 };
-
 export default UsersManagementPage;

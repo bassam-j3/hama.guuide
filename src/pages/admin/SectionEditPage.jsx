@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
-import { getSectionById, updateSection, fetchAllSections } from '../../api/services/sectionService';
+import { getSectionById, fetchAllSections } from '../../api/services/sectionService';
 import { uploadFile } from '../../api/services/fileService'; 
 import { getImageUrl } from '../../api/axiosConfig'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -10,12 +10,13 @@ import toast from 'react-hot-toast';
 
 // 🚀 استيراد هوكات الخدمات وربط الأقسام
 import { useServices } from '../../hooks/api/useServices';
-import { useSectionServices, useLinkServiceToSection, useRemoveServiceFromSection } from '../../hooks/api/useSections';
+import { useUpdateSection, useSectionServices, useLinkServiceToSection, useRemoveServiceFromSection } from '../../hooks/api/useSections';
 
 const SectionEditPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { triggerGlobalRefresh } = useOutletContext(); 
+    const updateSectionMutation = useUpdateSection();
 
     // حالة فورم القسم الأساسي
     const [formData, setFormData] = useState({ title: '', slug: '', description: '', imageUrl: '', parentId: '' });
@@ -100,7 +101,7 @@ const SectionEditPage = () => {
         setSubmitting(true); 
         const toastId = toast.loading('جاري حفظ التعديلات...'); 
         try {
-            await updateSection(id, formData);
+            await updateSectionMutation.mutateAsync({ id, data: formData });
             toast.success('تم حفظ التعديلات بنجاح!', { id: toastId }); 
             triggerGlobalRefresh(); 
             setTimeout(() => navigate('/admin/sections'), 1500);
@@ -188,81 +189,11 @@ const SectionEditPage = () => {
             </div>
 
             {/* 🚀 قسم إدارة الخدمات المربوطة (The New Feature) */}
-            <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
-                <div className="card-header bg-white border-bottom p-3 p-md-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <h5 className="fw-bold mb-0 text-primary d-flex align-items-center gap-2">
-                        <Gear size={20} /> الخدمات التابعة لهذا القسم
-                    </h5>
-                    
-                    {/* إضافة خدمة للقسم */}
-                    <div className="d-flex gap-2 w-100 w-md-auto">
-                        <select 
-                            className="form-select form-select-sm border-primary" 
-                            style={{ minWidth: '200px' }}
-                            value={selectedServiceToLink} 
-                            onChange={(e) => setSelectedServiceToLink(e.target.value)}
-                            disabled={loadingAllServices || linkMutation.isPending}
-                        >
-                            <option value="">-- اختر خدمة لربطها --</option>
-                            {availableServicesToLink.map(s => (
-                                <option key={s.id} value={s.id}>{s.title}</option>
-                            ))}
-                        </select>
-                        <button 
-                            className="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1"
-                            onClick={handleLinkService}
-                            disabled={!selectedServiceToLink || linkMutation.isPending}
-                        >
-                            {linkMutation.isPending ? <span className="spinner-border spinner-border-sm"/> : <PlusCircle />} ربط
-                        </button>
-                    </div>
-                </div>
+           {/* 
+           
 
-                <div className="card-body p-0">
-                    {loadingLinkedServices ? (
-                        <div className="text-center p-5"><LoadingSpinner size="md" message="جاري تحميل الخدمات..." /></div>
-                    ) : linkedServices.length === 0 ? (
-                        <div className="text-center text-muted p-5 bg-light">
-                            <Collection size={40} className="mb-3 opacity-25" />
-                            <h6>لا توجد أي خدمات مرتبطة بهذا القسم حالياً.</h6>
-                            <p className="small mb-0">يمكنك ربط الخدمات من القائمة العلوية.</p>
-                        </div>
-                    ) : (
-                        <div className="table-responsive">
-                            <table className="table table-hover align-middle mb-0">
-                                <thead className="bg-light text-secondary small text-uppercase">
-                                    <tr>
-                                        <th className="ps-4 py-3">اسم الخدمة</th>
-                                        <th className="py-3">الرابط (Slug)</th>
-                                        <th className="text-center py-3">إجراءات</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {linkedServices.map(service => (
-                                        <tr key={service.id}>
-                                            <td className="ps-4 fw-bold text-dark d-flex align-items-center gap-2">
-                                                <div className="bg-primary bg-opacity-10 text-primary rounded p-2"><Collection size={16}/></div>
-                                                {service.title}
-                                            </td>
-                                            <td className="text-muted small" dir="ltr">{service.slug}</td>
-                                            <td className="text-center">
-                                                <button 
-                                                    className="btn btn-outline-danger btn-sm px-3" 
-                                                    title="فك الارتباط وإزالتها من القسم"
-                                                    onClick={() => handleUnlinkService(service.id, service.title)}
-                                                    disabled={unlinkMutation.isPending}
-                                                >
-                                                    <Trash /> فك الربط
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            </div>
+           
+           */}
         </div>
     );
 };
