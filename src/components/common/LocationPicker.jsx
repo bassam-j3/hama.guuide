@@ -25,7 +25,7 @@ const LocationMarker = ({ position, setPosition, setAddress }) => {
                 const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
                 const data = await response.json();
                 setAddress(data.display_name || "Address not found");
-            } catch (error) { setAddress("Coordinates selected"); }
+            } catch { setAddress("Coordinates selected"); }
         },
     });
     
@@ -41,22 +41,21 @@ const LocationMarker = ({ position, setPosition, setAddress }) => {
     );
 };
 
-const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
+const LocationPicker = ({ value, onChange, onLocationSelect, initialLat, initialLng }) => {
     const [show, setShow] = useState(false);
-    const [position, setPosition] = useState(null);
+    const [selectedPosition, setSelectedPosition] = useState(null);
     const [address, setAddress] = useState("");
 
-    useEffect(() => {
-        if (initialLat && initialLng && !isNaN(initialLat) && !isNaN(initialLng)) {
-            if (parseFloat(initialLat) !== 0 || parseFloat(initialLng) !== 0) {
-                setPosition({ lat: parseFloat(initialLat), lng: parseFloat(initialLng) });
-            }
-        }
-    }, [initialLat, initialLng]);
+    const propLat = value?.lat ?? initialLat;
+    const propLng = value?.lng ?? initialLng;
+    const hasPropCoords = propLat && propLng && !isNaN(propLat) && !isNaN(propLng) && (parseFloat(propLat) !== 0 || parseFloat(propLng) !== 0);
+    const initialPosition = hasPropCoords ? { lat: parseFloat(propLat), lng: parseFloat(propLng) } : null;
+    const position = selectedPosition || initialPosition;
 
     const handleConfirm = () => { 
         if (position) { 
-            onLocationSelect(position.lat, position.lng, address); 
+            if (onChange) onChange({ lat: position.lat, lng: position.lng, address });
+            if (onLocationSelect) onLocationSelect(position.lat, position.lng, address); 
             setShow(false); 
         } 
     };
@@ -80,7 +79,7 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
                                     <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
                                 </LayersControl.BaseLayer>
                             </LayersControl>
-                            <LocationMarker position={position} setPosition={setPosition} setAddress={setAddress} />
+                            <LocationMarker position={position} setPosition={setSelectedPosition} setAddress={setAddress} />
                         </MapContainer>
                     </div>
                     {address && (

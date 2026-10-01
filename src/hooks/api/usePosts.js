@@ -32,6 +32,21 @@ export const useCreatePost = (serviceSlug) => {
     });
 };
 
+export const useUpdatePost = (serviceSlug) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ postId, postData }) => updatePostREST(serviceSlug, postId, postData),
+        onSuccess: () => {
+            toast.success('تم التعديل بنجاح!');
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.posts.all(serviceSlug) }); 
+        },
+        onError: (error) => {
+            const errorMsg = error.response?.data?.detail || "فشل التحديث.";
+            toast.error(errorMsg);
+        }
+    });
+};
+
 export const useDeletePost = (serviceSlug) => {
     const queryClient = useQueryClient();
     return useMutation({

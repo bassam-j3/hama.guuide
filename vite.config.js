@@ -1,15 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { VitePWA } from 'vite-plugin-pwa'; // 🚀 استيراد مكتبة PWA
 
 export default defineConfig({
   plugins: [
     react(), 
-    sentryVitePlugin({
-      org: "bjtcompany",
-      project: "hama-guide"
-    }),
     // 🚀 إعدادات تطبيق الـ PWA السحرية
     VitePWA({
       registerType: 'autoUpdate', // تحديث التطبيق عند العميل تلقائياً إذا رفعت كوداً جديداً

@@ -20,7 +20,7 @@ const UsersManagementPage = () => {
     const loadUsers = async () => {
         setLoading(true); setError(null);
         try { const data = await userService.getAllUsers(); setUsers(Array.isArray(data) ? data : []); } 
-        catch (err) { setError("فشل تحميل المستخدمين."); } finally { setLoading(false); }
+        catch { setError("فشل تحميل المستخدمين."); } finally { setLoading(false); }
     };
 
     useEffect(() => { loadUsers(); }, []);
@@ -38,7 +38,7 @@ const UsersManagementPage = () => {
 
     const handleDelete = async (id, name) => {
         if (!window.confirm(`حذف المستخدم "${name}"؟`)) return;
-        try { await userService.deleteUser(id); setUsers(prev => prev.filter(u => u.id !== id)); } catch (err) { alert("خطأ بالحذف."); }
+        try { await userService.deleteUser(id); setUsers(prev => prev.filter(u => u.id !== id)); } catch { alert("خطأ بالحذف."); }
     };
 
     const handleSubmit = async (e) => {
@@ -47,7 +47,7 @@ const UsersManagementPage = () => {
             if (isEditing) await userService.updateUser(currentUser.id, formData);
             else await userService.createUser(formData);
             setShowModal(false); loadUsers(); 
-        } catch (err) { alert("فشل الحفظ."); } finally { setSubmitting(false); }
+        } catch { alert("فشل الحفظ."); } finally { setSubmitting(false); }
     };
 
     if (loading) return <LoadingSpinner message="جاري تحميل المستخدمين..." />;

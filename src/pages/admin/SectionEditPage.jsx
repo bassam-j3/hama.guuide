@@ -5,12 +5,10 @@ import { uploadFile } from '../../api/services/fileService';
 import { getImageUrl } from '../../api/axiosConfig'; 
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
-import { Save, ArrowRight, Image as ImageIcon, Link45deg, Collection, PlusCircle, Trash, Gear } from 'react-bootstrap-icons';
+import { Save, ArrowRight, Image as ImageIcon, Link45deg } from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
 
-// 🚀 استيراد هوكات الخدمات وربط الأقسام
-import { useServices } from '../../hooks/api/useServices';
-import { useUpdateSection, useSectionServices, useLinkServiceToSection, useRemoveServiceFromSection } from '../../hooks/api/useSections';
+import { useUpdateSection } from '../../hooks/api/useSections';
 
 const SectionEditPage = () => {
     const { id } = useParams();
@@ -26,24 +24,6 @@ const SectionEditPage = () => {
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState(null);
 
-    // حالة اختيار خدمة جديدة لربطها
-    const [selectedServiceToLink, setSelectedServiceToLink] = useState('');
-
-    // 🚀 React Query Hooks للميزات الجديدة
-    const { data: allServicesData, isLoading: loadingAllServices } = useServices();
-    const { data: linkedServicesData, isLoading: loadingLinkedServices } = useSectionServices(id);
-    const linkMutation = useLinkServiceToSection();
-    const unlinkMutation = useRemoveServiceFromSection();
-
-    // تجهيز مصفوفات الخدمات
-    const allServices = Array.isArray(allServicesData) ? allServicesData : (allServicesData?.items || allServicesData?.data || []);
-    const linkedServices = Array.isArray(linkedServicesData) ? linkedServicesData : (linkedServicesData?.items || linkedServicesData?.data || []);
-
-    // 💡 فلترة الخدمات: إخفاء الخدمات المرتبطة مسبقاً من القائمة المنسدلة
-    const availableServicesToLink = useMemo(() => {
-        return allServices.filter(service => !linkedServices.some(linked => linked.id === service.id));
-    }, [allServices, linkedServices]);
-
     const loadInitialData = useCallback(async () => {
         try {
             setLoading(true);
@@ -53,7 +33,7 @@ const SectionEditPage = () => {
                 imageUrl: sectionData.imageUrl || '', parentId: sectionData.parentId || ''
             });
             setAllSections(Array.isArray(sectionsList) ? sectionsList : (sectionsList?.items || []));
-        } catch (err) { setLoadError('فشل جلب البيانات.'); } finally { setLoading(false); }
+        } catch { setLoadError('فشل جلب البيانات.'); } finally { setLoading(false); }
     }, [id]);
 
     useEffect(() => { loadInitialData(); }, [loadInitialData]);
@@ -77,7 +57,7 @@ const SectionEditPage = () => {
         const { name, value } = e.target;
         setFormData(prev => {
             let newValue = value;
-            if (name === 'slug') newValue = value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF\-]+/g, '').replace(/\-\-+/g, '-');
+            if (name === 'slug') newValue = value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]+/g, '').replace(/--+/g, '-');
             return { ...prev, [name]: newValue };
         });
     };
@@ -91,7 +71,7 @@ const SectionEditPage = () => {
             const result = await uploadFile(file);
             setFormData(prev => ({ ...prev, imageUrl: result.fileUrl || result }));
             toast.success('تم رفع الصورة!', { id: toastId }); 
-        } catch (err) { 
+        } catch { 
             toast.error('فشل رفع الصورة.', { id: toastId }); 
         } finally { setUploading(false); }
     };
@@ -105,23 +85,9 @@ const SectionEditPage = () => {
             toast.success('تم حفظ التعديلات بنجاح!', { id: toastId }); 
             triggerGlobalRefresh(); 
             setTimeout(() => navigate('/admin/sections'), 1500);
-        } catch (err) { 
+        } catch { 
             toast.error('فشل حفظ التعديلات.', { id: toastId }); 
         } finally { setSubmitting(false); }
-    };
-
-    // 🚀 دوال الربط وفك الربط
-    const handleLinkService = () => {
-        if (!selectedServiceToLink) return toast.error('يرجى اختيار خدمة أولاً');
-        linkMutation.mutate({ sectionId: id, serviceId: selectedServiceToLink }, {
-            onSuccess: () => setSelectedServiceToLink('') // تصفير الاختيار بعد النجاح
-        });
-    };
-
-    const handleUnlinkService = (serviceId, serviceTitle) => {
-        if (window.confirm(`هل أنت متأكد من فك ارتباط خدمة "${serviceTitle}" من هذا القسم؟`)) {
-            unlinkMutation.mutate({ sectionId: id, serviceId });
-        }
     };
 
     if (loading) return <LoadingSpinner message="جاري جلب البيانات..." />;

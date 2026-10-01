@@ -13,7 +13,7 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
 
         // 🚀 Senior Frontend Shield: Upgraded to catch "type": "Service" based on backend JSON
         const cleanSections = rawData.filter(item => {
-            const isService = item.type === 'Service' || item.hasOwnProperty('sectionId') || item.discriminator === 'Service';
+            const isService = item.type === 'Service' || Object.prototype.hasOwnProperty.call(item, 'sectionId') || item.discriminator === 'Service';
             return !isService; 
         });
 
@@ -36,7 +36,7 @@ export const fetchAllSections = async () => {
             
             const promises = children.map(child => fetchRecursive(child.id));
             await Promise.allSettled(promises);
-        } catch (err) {
+        } catch {
             // Handled silently to prevent breaking execution loops
         }
     };
@@ -74,28 +74,24 @@ export const updateSection = async (id, sectionData) => {
 };
 
 export const deleteSection = async (id) => {
-    try {
-        const services = await getSectionServices(id);
-        if (services && services.length > 0) {
-            const deleteServicesPromises = services.map(srv => 
-                axiosInstance.delete(`/Services/${srv.id}`).catch(err => {
-                    if (err.response?.status !== 404) throw err;
-                })
-            );
-            await Promise.allSettled(deleteServicesPromises);
-        }
-
-        const children = await fetchSectionsByParent(id);
-        if (children && children.length > 0) {
-            const deleteChildrenPromises = children.map(child => deleteSection(child.id));
-            await Promise.allSettled(deleteChildrenPromises);
-        }
-
-        const response = await axiosInstance.delete(`${API_BASE}/${id}`);
-        return response.data;
-    } catch (error) {
-        throw error;
+    const services = await getSectionServices(id);
+    if (services && services.length > 0) {
+        const deleteServicesPromises = services.map(srv => 
+            axiosInstance.delete(`/Services/${srv.id}`).catch(err => {
+                if (err.response?.status !== 404) throw err;
+            })
+        );
+        await Promise.allSettled(deleteServicesPromises);
     }
+
+    const children = await fetchSectionsByParent(id);
+    if (children && children.length > 0) {
+        const deleteChildrenPromises = children.map(child => deleteSection(child.id));
+        await Promise.allSettled(deleteChildrenPromises);
+    }
+
+    const response = await axiosInstance.delete(`${API_BASE}/${id}`);
+    return response.data;
 };
 
 export const assignChildSection = async (parentId, childId) => {

@@ -1,6 +1,5 @@
 import React from 'react';
 import { ExclamationTriangle, ArrowClockwise } from 'react-bootstrap-icons';
-import * as Sentry from "@sentry/react"; // 🚀 استيراد Sentry
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -8,16 +7,12 @@ class ErrorBoundary extends React.Component {
     this.state = { hasError: false, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(_error) {
     return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
     console.error("تم التقاط خطأ بواسطة ErrorBoundary:", error, errorInfo);
-    
-    // 🚀 إرسال الخطأ والتفاصيل فوراً إلى حسابك في Sentry
-    Sentry.captureException(error, { extra: errorInfo });
-    
     this.setState({ errorInfo });
   }
 

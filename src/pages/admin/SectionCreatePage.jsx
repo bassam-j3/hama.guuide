@@ -24,7 +24,7 @@ const SectionCreatePage = () => {
             try {
                 const data = await fetchAllSections();
                 setAllSections(Array.isArray(data) ? data : (data?.items || []));
-            } catch (err) { setLoadError("فشل تحميل قائمة الأقسام."); } finally { setLoading(false); }
+            } catch { setLoadError("فشل تحميل قائمة الأقسام."); } finally { setLoading(false); }
         };
         loadSections();
     }, []);
@@ -47,7 +47,7 @@ const SectionCreatePage = () => {
         setFormData(prev => {
             const updates = { ...prev, [name]: value };
             if (name === 'title' && !prev.slugTouched) {
-                updates.slug = value.trim().replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
+                updates.slug = value.trim().replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]+/g, '').replace(/--+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
             }
             return updates;
         });
@@ -64,7 +64,7 @@ const SectionCreatePage = () => {
             const res = await uploadFile(file);
             setFormData(prev => ({ ...prev, imageUrl: res.fileUrl || res }));
             toast.success('تم رفع الصورة بنجاح', { id: toastId }); 
-        } catch (err) { 
+        } catch { 
             toast.error('فشل رفع الصورة.', { id: toastId }); 
         } finally { setUploading(false); }
     };

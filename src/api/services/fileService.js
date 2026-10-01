@@ -18,12 +18,8 @@ export const uploadFile = async (fileObject) => {
     const formData = new FormData();
     formData.append("file", fileObject); 
 
-    try {
-        // 🚀 استخدام النسخة المخصصة للرفع والتي تتكفل بالـ Auth والـ Refresh Token تلقائياً
-        const response = await axiosUploadInstance.post(FILE_ENDPOINT, formData);
-        
-        return response.data?.fileUrl || response.data || response; 
-    } catch (error) {
-        throw error;
-    }
+    // 🚀 استخدام النسخة المخصصة للرفع والتي تتكفل بالـ Auth والـ Refresh Token تلقائياً
+    const response = await axiosUploadInstance.post(FILE_ENDPOINT, formData);
+    
+    return response.data?.fileUrl || response.data || response;
 };

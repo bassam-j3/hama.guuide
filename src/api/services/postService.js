@@ -16,7 +16,7 @@ export const fetchPostsByServiceSlug = async (serviceSlug) => {
       ...post, 
       payload: typeof post.payload === 'string' ? JSON.parse(post.payload) : (post.payload || {})
     }));
-  } catch (error) { return []; }
+  } catch { return []; }
 };
 
 export const getPostById = async (serviceSlug, postId) => {
@@ -66,7 +66,7 @@ export const fetchAllAll = async () => {
   try {
       const response = await graphqlInstance.post('', { query });
       return response.data?.data?.posts?.nodes || [];
-  } catch (error) { return []; }
+  } catch { return []; }
 };
 
 export const deletePostRating = async (postId) => {

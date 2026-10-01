@@ -58,7 +58,7 @@ const ServiceEditPage = () => {
                     try { 
                         const res = await schemaService.getSchemaByService(id);
                         rawSchema = res?.schema || res || []; 
-                    } catch (e) {
+                    } catch {
                         // تجاهل الخطأ إذا لم يكن هناك مخطط مخصص
                     }
 
@@ -81,7 +81,7 @@ const ServiceEditPage = () => {
                         });
                         setSchemaLoading(false);
                     }
-                } catch (err) {
+                } catch {
                     if (isMounted) {
                         setLoadError('فشل جلب المخطط.');
                         setSchemaLoading(false);
@@ -95,7 +95,7 @@ const ServiceEditPage = () => {
         return () => { isMounted = false; };
     }, [serviceData, id]);
 
-    const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.name === 'slug' ? e.target.value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF\-]+/g, '').replace(/\-\-+/g, '-') : e.target.value }));
+    const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.name === 'slug' ? e.target.value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]+/g, '').replace(/--+/g, '-') : e.target.value }));
     const handleSectionChange = (val) => setFormData(prev => ({ ...prev, sectionId: val }));
 
     const addField = () => setFormData(p => ({ ...p, schema: [...p.schema, { fieldName: "", fieldType: "String", isRequired: false, presentation: getPresentationOptions("String")[0].value }] }));
@@ -151,7 +151,7 @@ const ServiceEditPage = () => {
             toast.success('اكتمل حفظ التعديلات بنجاح!', { id: toastId }); 
             triggerGlobalRefresh();
             setTimeout(() => navigate('/admin/services'), 1000); 
-        } catch (err) { 
+        } catch { 
             setLoadError("فشل التحديث. تأكد من توافق البيانات.");
             toast.error("فشل التحديث. تأكد من توافق البيانات.", { id: toastId }); 
         } finally { 

@@ -3,7 +3,6 @@ import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import { Trash, PencilSquare, PlusLg, ArrowRight, Collection, ArrowClockwise, GeoAltFill, StarFill, ArrowCounterclockwise } from 'react-bootstrap-icons';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
-import toast from 'react-hot-toast';
 
 import { usePostsBySlug, useDeletePost, useResetPostRating } from '../../hooks/api/usePosts';
 import { useQueryClient } from '@tanstack/react-query'; 
@@ -23,7 +22,9 @@ const PostsManagementPage = () => {
     const deleteMutation = useDeletePost(serviceSlug);
     const resetRatingMutation = useResetPostRating(serviceSlug);
 
-    const posts = Array.isArray(postsData) ? postsData : (postsData?.items || postsData?.data || []);
+    const posts = useMemo(() => {
+        return Array.isArray(postsData) ? postsData : (postsData?.items || postsData?.data || []);
+    }, [postsData]);
 
     const handleDelete = async (postId, postTitle) => {
         // 🚀 استخدام Toast بدلاً من window.confirm
@@ -131,7 +132,16 @@ const SmartCell = React.memo(({ value }) => {
     if (typeof value === 'boolean') return value ? "✅" : "❌";
     const valStr = String(value);
     if (valStr.startsWith('[') && valStr.endsWith(']')) {
-        try { const arr = JSON.parse(valStr); if (Array.isArray(arr) && arr.length === 2 && typeof arr[0] === 'number') return <span className="badge bg-light text-primary border text-truncate"><GeoAltFill/> إحداثيات</span>; } catch (e) {}
+        let isCoordinates = false;
+        try {
+            const arr = JSON.parse(valStr);
+            isCoordinates = Array.isArray(arr) && arr.length === 2 && typeof arr[0] === 'number';
+        } catch {
+            isCoordinates = false;
+        }
+        if (isCoordinates) {
+            return <span className="badge bg-light text-primary border text-truncate"><GeoAltFill/> إحداثيات</span>;
+        }
     }
     if (valStr.match(/\.(jpeg|jpg|gif|png|webp)/i) || valStr.includes('amazonaws')) return <img src={valStr} alt="img" style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '6px' }} className="border" />;
     return <span className="text-truncate d-inline-block" style={{maxWidth: '120px'}} title={valStr}>{valStr}</span>;

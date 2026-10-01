@@ -44,7 +44,7 @@ const PostCreatePage = () => {
                 if (Array.isArray(schemaRes)) realSchema = schemaRes;
                 else if (schemaRes.schema) realSchema = schemaRes.schema;
                 else if (schemaRes.types) realSchema = schemaRes.types;
-            } catch (e) {
+            } catch {
                 if (currentService.schema) realSchema = currentService.schema;
             }
 
@@ -65,7 +65,7 @@ const PostCreatePage = () => {
             filteredSchema.forEach(f => initialPayload[f.fieldName] = f.fieldType === 'Bool' ? false : "");
             setPayloadData(initialPayload);
 
-        } catch (err) {
+        } catch {
             setStatus({ type: 'danger', message: 'فشل تحميل بيانات الخدمة.' });
         } finally {
             setLoading(false);

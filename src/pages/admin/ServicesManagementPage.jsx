@@ -27,7 +27,9 @@ const ServicesManagementPage = () => {
 
     const services = Array.isArray(rawServices) ? rawServices : (rawServices?.items || rawServices?.data || []);
     // استبعاد الخدمات من قائمة الأقسام
-    const sections = Array.isArray(rawSections) ? rawSections.filter(s => !s.hasOwnProperty('sectionId')) : [];
+    const sections = useMemo(() => {
+        return Array.isArray(rawSections) ? rawSections.filter(s => !Object.hasOwn(s, 'sectionId')) : [];
+    }, [rawSections]);
 
     const sectionsMap = useMemo(() => {
         return sections.reduce((acc, sec) => { acc[sec.id] = sec.title; return acc; }, {});
@@ -50,7 +52,7 @@ const ServicesManagementPage = () => {
                 await Promise.all(orphans.map(s => deleteService(s.id)));
                 toast.success('تم تنظيف كافة البيانات اليتيمة بنجاح!', { id: toastId });
                 queryClient.invalidateQueries({ queryKey: ['services'] });
-            } catch (err) {
+            } catch {
                 toast.error('حدث خطأ أثناء تنظيف بعض الخدمات.', { id: toastId });
                 queryClient.invalidateQueries({ queryKey: ['services'] });
             }

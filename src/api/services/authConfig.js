@@ -12,7 +12,7 @@ export const authService = {
         const parsedData = JSON.parse(storedData);
         if (parsedData && parsedData.access_token) return parsedData.profile;
       }
-    } catch (e) {}
+    } catch { /* empty */ }
     return null;
   },
 

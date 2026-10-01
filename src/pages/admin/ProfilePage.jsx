@@ -22,7 +22,7 @@ const ProfilePage = () => {
         queryFn: async () => {
             try {
                 return await authService.getMe(); // جلب البيانات الطازجة من السيرفر
-            } catch (err) {
+            } catch {
                 return authService.getCurrentUser(); // احتياطي من الـ LocalStorage
             }
         },

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { House, Grid, Gear, BoxArrowRight, ChevronDown, PatchCheck, Collection, FileText, People, XLg } from 'react-bootstrap-icons';
+import { House, Grid, Gear, BoxArrowRight, ChevronDown, PatchCheck, Collection, FileText, People, XLg, Sliders } from 'react-bootstrap-icons';
 import { fetchAllServices } from '../../api/services/serviceService';
 import { fetchAllSections } from '../../api/services/sectionService';
 import authService from '../../api/services/authConfig';
+import { useAuth } from '../../hooks/useAuth';
 
 const useSidebarData = () => {
     const [tree, setTree] = useState([]);
@@ -29,53 +30,63 @@ const useSidebarData = () => {
     return { tree, loading };
 };
 
-// --- 4. المكون الرئيسي ---
+// مكون مساعد للروابط الثابتة يغلق القائمة عند الضغط
+const SidebarItem = ({ to, icon, label, end, closeSidebar }) => (
+    <NavLink to={to} end={end} onClick={closeSidebar} className={({ isActive }) => `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 transition-all mb-1 ${isActive ? 'bg-primary text-white shadow-sm' : 'text-white-50 hover-bg-dark'}`}>
+        {icon} <span className="small">{label}</span>
+    </NavLink>
+);
+
+const SidebarServiceItem = ({ service, level, closeSidebar }) => (
+    <NavLink to={`/admin/posts/${service.slug}`} onClick={closeSidebar} className={({ isActive }) => `d-flex align-items-center gap-2 py-1 px-2 text-decoration-none transition-all rounded-1 mb-1 ${isActive ? 'bg-success text-white shadow-sm' : 'text-white-50 hover-text-white hover-bg-dark'}`} style={{ marginLeft: `${level * 12}px`, fontSize: '0.85rem' }}>
+        <FileText size={14} /> <span className="text-truncate">{service.title}</span>
+    </NavLink>
+);
+
+const SidebarSection = ({ item, level = 0, currentPath, closeSidebar }) => {
+    const isActiveParent = useMemo(() => {
+        const checkActive = (node) => { if (node.type === 'service') return currentPath.includes(`/posts/${node.slug}`); return node.children && node.children.some(checkActive); };
+        return checkActive(item);
+    }, [item, currentPath]);
+
+    const [isOpen, setIsOpen] = useState(isActiveParent);
+    const [prevIsActive, setPrevIsActive] = useState(isActiveParent);
+
+    if (isActiveParent !== prevIsActive) {
+        setPrevIsActive(isActiveParent);
+        if (isActiveParent) {
+            setIsOpen(true);
+        }
+    }
+
+    if (!item.children || item.children.length === 0) return null;
+
+    return (
+        <div className="mb-1">
+            <button onClick={() => setIsOpen(!isOpen)} className={`nav-link w-100 d-flex align-items-center justify-content-between px-2 py-2 rounded-2 border-0 bg-transparent transition-all ${isActiveParent ? 'text-white' : 'text-white-50 hover-text-white'}`} style={{ paddingLeft: level === 0 ? '1rem' : `${level * 12 + 16}px` }}>
+                <div className="d-flex align-items-center gap-2 text-truncate">
+                    {level === 0 ? <Collection size={16} className={isActiveParent ? "text-success" : ""} /> : <Grid size={14} />}
+                    <span className="small fw-bold">{item.title}</span>
+                </div>
+                <ChevronDown size={12} style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+            </button>
+            <div className={`overflow-hidden transition-all`} style={{ maxHeight: isOpen ? '1000px' : '0', opacity: isOpen ? 1 : 0 }}>
+                <div className="border-start border-secondary ms-3 ps-2 my-1">
+                    {item.children.map(child => child.type === 'service' ? <SidebarServiceItem key={child.id} service={child} level={0} closeSidebar={closeSidebar} /> : <SidebarSection key={child.id} item={child} level={level + 1} currentPath={currentPath} closeSidebar={closeSidebar} />)}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- المكون الرئيسي ---
 const Sidebar = ({ closeSidebar }) => { // 🚀 استقبال دالة الإغلاق
     const navigate = useNavigate();
     const location = useLocation();
+    const { isSuperAdmin } = useAuth();
     const { tree, loading } = useSidebarData();
 
     const handleLogout = () => { authService.logout(); navigate('/login'); };
-
-    // مكون مساعد للروابط الثابتة يغلق القائمة عند الضغط
-    const SidebarItem = ({ to, icon, label, end }) => (
-        <NavLink to={to} end={end} onClick={closeSidebar} className={({ isActive }) => `nav-link d-flex align-items-center gap-3 px-3 py-2 rounded-2 transition-all mb-1 ${isActive ? 'bg-primary text-white shadow-sm' : 'text-white-50 hover-bg-dark'}`}>
-            {icon} <span className="small">{label}</span>
-        </NavLink>
-    );
-
-    const SidebarServiceItem = ({ service, level }) => (
-        <NavLink to={`/admin/posts/${service.slug}`} onClick={closeSidebar} className={({ isActive }) => `d-flex align-items-center gap-2 py-1 px-2 text-decoration-none transition-all rounded-1 mb-1 ${isActive ? 'bg-success text-white shadow-sm' : 'text-white-50 hover-text-white hover-bg-dark'}`} style={{ marginLeft: `${level * 12}px`, fontSize: '0.85rem' }}>
-            <FileText size={14} /> <span className="text-truncate">{service.title}</span>
-        </NavLink>
-    );
-
-    const SidebarSection = ({ item, level = 0 }) => {
-        const isActiveParent = useMemo(() => {
-            const checkActive = (node) => { if (node.type === 'service') return location.pathname.includes(`/posts/${node.slug}`); return node.children && node.children.some(checkActive); };
-            return checkActive(item);
-        }, [item, location.pathname]);
-        const [isOpen, setIsOpen] = useState(isActiveParent);
-        useEffect(() => { if (isActiveParent) setIsOpen(true); }, [isActiveParent]);
-        if (!item.children || item.children.length === 0) return null;
-
-        return (
-            <div className="mb-1">
-                <button onClick={() => setIsOpen(!isOpen)} className={`nav-link w-100 d-flex align-items-center justify-content-between px-2 py-2 rounded-2 border-0 bg-transparent transition-all ${isActiveParent ? 'text-white' : 'text-white-50 hover-text-white'}`} style={{ paddingLeft: level === 0 ? '1rem' : `${level * 12 + 16}px` }}>
-                    <div className="d-flex align-items-center gap-2 text-truncate">
-                        {level === 0 ? <Collection size={16} className={isActiveParent ? "text-success" : ""} /> : <Grid size={14} />}
-                        <span className="small fw-bold">{item.title}</span>
-                    </div>
-                    <ChevronDown size={12} style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
-                </button>
-                <div className={`overflow-hidden transition-all`} style={{ maxHeight: isOpen ? '1000px' : '0', opacity: isOpen ? 1 : 0 }}>
-                    <div className="border-start border-secondary ms-3 ps-2 my-1">
-                        {item.children.map(child => child.type === 'service' ? <SidebarServiceItem key={child.id} service={child} level={0} /> : <SidebarSection key={child.id} item={child} level={level + 1} />)}
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <div className="d-flex flex-column flex-shrink-0 p-3 text-white h-100">
@@ -92,15 +103,24 @@ const Sidebar = ({ closeSidebar }) => { // 🚀 استقبال دالة الإغ
             <div className="flex-grow-1 overflow-auto custom-scrollbar pe-2">
                 <nav className="nav nav-pills flex-column">
                     <div className="text-uppercase text-white-50 fw-bold mb-2 ps-3" style={{ fontSize: '0.7rem' }}>الرئيسية</div>
-                    <SidebarItem to="/admin" icon={<House size={18} />} label="الإحصائيات" end />
-                    <SidebarItem to="/admin/users" icon={<People size={18} />} label="إدارة المستخدمين" />
-                    <SidebarItem to="/admin/sections" icon={<Grid size={18} />} label="إدارة الأقسام" />
-                    <SidebarItem to="/admin/services" icon={<Gear size={18} />} label="إدارة الخدمات" />
+                    <SidebarItem to="/admin" icon={<House size={18} />} label="الإحصائيات" end closeSidebar={closeSidebar} />
+                    
+                    {isSuperAdmin && (
+                        <>
+                            <div className="my-3 border-top border-secondary opacity-25"></div>
+                            <div className="text-uppercase text-white-50 fw-bold mb-2 ps-3" style={{ fontSize: '0.7rem' }}>إدارة النظام</div>
+                            <SidebarItem to="/admin/users" icon={<People size={18} />} label="إدارة المستخدمين" closeSidebar={closeSidebar} />
+                            <SidebarItem to="/admin/sections" icon={<Grid size={18} />} label="إدارة الأقسام" closeSidebar={closeSidebar} />
+                            <SidebarItem to="/admin/services" icon={<Gear size={18} />} label="إدارة الخدمات" closeSidebar={closeSidebar} />
+                            <SidebarItem to="/admin/schema" icon={<Sliders size={18} />} label="إدارة المخططات" closeSidebar={closeSidebar} />
+                        </>
+                    )}
+
                     <div className="my-3 border-top border-secondary opacity-25"></div>
                     <div className="text-uppercase text-white-50 fw-bold mb-2 ps-3" style={{ fontSize: '0.7rem' }}>المحتوى</div>
                     
                     {loading ? <div className="text-center py-4"><span className="spinner-border spinner-border-sm text-success"></span></div> 
-                    : tree.map(node => <SidebarSection key={node.id} item={node} />)}
+                    : tree.map(node => <SidebarSection key={node.id} item={node} currentPath={location.pathname} closeSidebar={closeSidebar} />)}
                 </nav>
             </div>
 

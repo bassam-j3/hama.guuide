@@ -12,10 +12,11 @@ const PostServiceSelectionPage = () => {
     const { data: servicesData, isLoading, isError } = useServices();
     
     // استخراج مصفوفة الخدمات بأمان
-    const services = Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
+    const services = useMemo(() => {
+        return Array.isArray(servicesData) ? servicesData : (servicesData?.items || servicesData?.data || []);
+    }, [servicesData]);
 
     const filteredServices = useMemo(() => {
-        if (!services) return [];
         return services.filter(s => s.title?.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [services, searchTerm]);
 

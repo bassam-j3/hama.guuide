@@ -15,7 +15,7 @@ class FieldErrorBoundary extends React.Component {
         super(props);
         this.state = { hasError: false };
     }
-    static getDerivedStateFromError(error) {
+    static getDerivedStateFromError(_error) {
         return { hasError: true };
     }
     componentDidCatch(error, errorInfo) {
@@ -99,7 +99,7 @@ const AddressField = ({ fieldName, value, handleChange, isRequired, onAddressUpd
             const parsed = JSON.parse(value);
             if (Array.isArray(parsed) && parsed.length === 2) { savedLat = parsed[0]; savedLng = parsed[1]; }
         }
-    } catch(e) {}
+    } catch { /* empty */ }
 
     return (
         <FieldWrapper fieldName={fieldName} isRequired={isRequired} icon={<GeoAltFill className="text-danger"/>}>

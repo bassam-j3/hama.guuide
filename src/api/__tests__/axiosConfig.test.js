@@ -12,7 +12,7 @@ vi.mock('../services/tokenService', () => ({
 
 vi.mock('axios', async (importOriginal) => {
     const actual = await importOriginal();
-    const axiosMock = vi.fn((config) => Promise.resolve({ data: 'mocked_retry' }));
+    const axiosMock = vi.fn(() => Promise.resolve({ data: 'mocked_retry' }));
     axiosMock.create = actual.default.create;
     axiosMock.post = vi.fn();
     return { default: axiosMock };

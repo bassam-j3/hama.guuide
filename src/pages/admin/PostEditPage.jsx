@@ -25,7 +25,6 @@ const PostEditPage = () => {
     });
     
     const [payloadData, setPayloadData] = useState({});
-    const [serviceInfo, setServiceInfo] = useState(null);
     const [schema, setSchema] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -49,7 +48,7 @@ const PostEditPage = () => {
                 if (Array.isArray(schemaRes)) realSchema = schemaRes;
                 else if (schemaRes.schema) realSchema = schemaRes.schema;
                 else if (schemaRes.types) realSchema = schemaRes.types;
-            } catch (e) {
+            } catch {
                 if (currentService.schema) realSchema = currentService.schema;
             }
 
@@ -64,7 +63,6 @@ const PostEditPage = () => {
             });
 
             setSchema(filteredSchema);
-            setServiceInfo(currentService);
 
             const initialPayload = {};
             filteredSchema.forEach(field => {
@@ -82,7 +80,7 @@ const PostEditPage = () => {
                 addressDisplay: ""
             });
 
-        } catch (err) {
+        } catch {
             setStatus({ type: 'danger', message: 'فشل تحميل بيانات البوست.' });
         } finally {
             setLoading(false);

@@ -34,7 +34,7 @@ const ServiceCreatePage = () => {
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState(null);
 
-    const generateSlug = (text) => text?.toString().toLowerCase().trim().replace(/[\s_]+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '') || "";
+    const generateSlug = (text) => text?.toString().toLowerCase().trim().replace(/[\s_]+/g, '-').replace(/[^\w-]+/g, '').replace(/--+/g, '-').replace(/^-+/, '').replace(/-+$/, '') || "";
 
     const handleChange = (e) => {
         const { name, value } = e.target;

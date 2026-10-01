@@ -3,12 +3,8 @@ import axiosInstance from '../axiosConfig';
 const API_BASE = '/Services';
 
 export const fetchAllServices = async () => {
-    try {
-        const response = await axiosInstance.get(API_BASE);
-        return Array.isArray(response.data) ? response.data : (response.data?.items || []);
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(API_BASE);
+    return Array.isArray(response.data) ? response.data : (response.data?.items || []);
 };
 
 export const fetchServiceById = async (id) => {

@@ -39,7 +39,7 @@ export const useUpdateSection = () => {
   const queryClient = useQueryClient();
   return useMutation({
       mutationFn: ({ id, data }) => sectionService.updateSection(id, data),
-      onSuccess: (_, variables) => {
+      onSuccess: ( ) => {
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sections.all }); // 👈 تحديث الشجرة
       }
   });
