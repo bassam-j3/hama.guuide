@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAuthData, setAuthData, clearAuthData } from './services/tokenService';
 import { authEvents } from '../utils/authEvents';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://corsproxy.io/?http://hamaguide-alb-1438235207.eu-north-1.elb.amazonaws.com/api";
 
 // ==========================================
 // 🌟 دالة مساعدة لمعالجة روابط الصور
