@@ -42,6 +42,12 @@ export default defineConfig({
   server: {
     port: 5003,
     host: 'localhost',
+    proxy: {
+      '/api': {
+        target: 'http://hamaguide-alb-1438235207.eu-north-1.elb.amazonaws.com',
+        changeOrigin: true
+      }
+    }
   },
   test: {
     globals: true,
