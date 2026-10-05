@@ -16,6 +16,7 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({ userName: '', password: '' });
 
     // حالة نافذة "نسيت كلمة المرور"
     const [showResetModal, setShowResetModal] = useState(false);
@@ -24,7 +25,21 @@ const LoginPage = () => {
     const handleLogin = async (e) => {
         e.preventDefault();
         
-        if (!userName.trim() || !password.trim()) {
+        const newErrors = { userName: '', password: '' };
+        let hasError = false;
+
+        if (!userName.trim()) {
+            newErrors.userName = 'يرجى إدخال اسم المستخدم.';
+            hasError = true;
+        }
+        if (!password.trim()) {
+            newErrors.password = 'يرجى إدخال كلمة المرور.';
+            hasError = true;
+        }
+
+        setErrors(newErrors);
+
+        if (hasError) {
             return toast.error("يرجى إدخال اسم المستخدم وكلمة المرور.");
         }
 
@@ -41,7 +56,11 @@ const LoginPage = () => {
         } catch (err) {
             console.error(err);
             let errorMsg = 'فشل تسجيل الدخول. تأكد من صحة بياناتك.';
-            if (err.response?.data?.detail) {
+            if (err.message === "Username and password are required") {
+                errorMsg = "اسم المستخدم وكلمة المرور مطلوبان.";
+            } else if (err.response?.status === 500) {
+                errorMsg = 'خطأ في الخادم: يرجى التحقق من المدخلات أو المحاولة لاحقاً.';
+            } else if (err.response?.data?.detail) {
                 errorMsg = err.response.data.detail;
             } else if (err.response?.status === 401 || err.response?.status === 404) {
                 errorMsg = 'اسم المستخدم أو كلمة المرور غير صحيحة.';
@@ -86,21 +105,23 @@ const LoginPage = () => {
                 <form onSubmit={handleLogin}>
                     <div className="mb-4">
                         <label className="form-label small fw-bold text-secondary">اسم المستخدم</label>
-                        <div className="input-group input-group-lg shadow-sm">
-                            <span className="input-group-text bg-white text-primary border-end-0 px-3">
+                        <div className={`input-group input-group-lg shadow-sm ${errors.userName ? 'is-invalid' : ''}`}>
+                            <span className={`input-group-text bg-white text-primary border-end-0 px-3 ${errors.userName ? 'border-danger' : ''}`}>
                                 <Person size={20} />
                             </span>
                             <input 
                                 type="text" 
-                                className="form-control border-start-0 fs-6 ps-0" 
+                                className={`form-control border-start-0 fs-6 ps-0 ${errors.userName ? 'is-invalid border-danger' : ''}`} 
                                 value={userName}
-                                onChange={(e) => setUserName(e.target.value)}
+                                onChange={(e) => {
+                                    setUserName(e.target.value);
+                                    if(errors.userName) setErrors({...errors, userName: ''});
+                                }}
                                 placeholder="أدخل اسم المستخدم"
-                                required 
-                                autoFocus
                                 disabled={loading}
                             />
                         </div>
+                        {errors.userName && <div className="text-danger small mt-1">{errors.userName}</div>}
                     </div>
                     
                     <div className="mb-5">
@@ -116,28 +137,31 @@ const LoginPage = () => {
                                 نسيت كلمة المرور؟
                             </button>
                         </div>
-                        <div className="input-group input-group-lg shadow-sm">
-                            <span className="input-group-text bg-white text-primary border-end-0 px-3">
+                        <div className={`input-group input-group-lg shadow-sm ${errors.password ? 'is-invalid' : ''}`}>
+                            <span className={`input-group-text bg-white text-primary border-end-0 px-3 ${errors.password ? 'border-danger' : ''}`}>
                                 <Lock size={20} />
                             </span>
                             <input 
                                 type={showPassword ? "text" : "password"} 
-                                className="form-control border-start-0 border-end-0 fs-6 ps-0" 
+                                className={`form-control border-start-0 border-end-0 fs-6 ps-0 ${errors.password ? 'is-invalid border-danger' : ''}`} 
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => {
+                                    setPassword(e.target.value);
+                                    if(errors.password) setErrors({...errors, password: ''});
+                                }}
                                 placeholder="أدخل كلمة المرور"
-                                required 
                                 disabled={loading}
                             />
                             <button 
                                 type="button" 
-                                className="input-group-text bg-white text-muted border-start-0 cursor-pointer" 
+                                className={`input-group-text bg-white text-muted border-start-0 cursor-pointer ${errors.password ? 'border-danger' : ''}`} 
                                 onClick={() => setShowPassword(!showPassword)}
                                 disabled={loading}
                             >
                                 {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
                             </button>
                         </div>
+                        {errors.password && <div className="text-danger small mt-1">{errors.password}</div>}
                     </div>
                     
                     <button 

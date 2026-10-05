@@ -15,6 +15,7 @@ const SectionsManagementPage = () => {
     const [draggedSection, setDraggedSection] = useState(null);
     const [dragOverId, setDragOverId] = useState(null);
     const [expandedSections, setExpandedSections] = useState({});
+    const [searchQuery, setSearchQuery] = useState('');
 
     // جلب الأقسام والخدمات
     const { data: sectionsData, isLoading, isError } = useSections();
@@ -34,7 +35,14 @@ const SectionsManagementPage = () => {
         ? sectionsData.filter(s => !serviceIds.has(s.id)) 
         : [];
     
-    const rootSections = sections.filter(s => !s.parentId);
+    // 3. فلترة الأقسام بناءً على البحث
+    const filteredSections = sections.filter(s => {
+        const query = searchQuery.toLowerCase();
+        return (s.title && s.title.toLowerCase().includes(query)) || 
+               (s.description && s.description.toLowerCase().includes(query));
+    });
+    
+    const rootSections = filteredSections.filter(s => !s.parentId);
     const isProcessing = deleteMutation.isPending || assignMutation.isPending || removeMutation.isPending;
 
     const toggleSection = (id) => {
@@ -75,7 +83,7 @@ const SectionsManagementPage = () => {
     };
 
     const SectionRow = ({ section, level = 0 }) => {
-        const children = sections.filter(s => s.parentId === section.id);
+        const children = filteredSections.filter(s => s.parentId === section.id);
         const hasChildren = children.length > 0;
         const isExpanded = !!expandedSections[section.id];
 
@@ -146,6 +154,18 @@ const SectionsManagementPage = () => {
                 <button className="btn btn-success btn-sm px-4 shadow-sm" onClick={() => navigate('/admin/sections/create')}>
                     <PlusLg className="me-2"/> إضافة قسم
                 </button>
+            </div>
+
+            {/* شريط البحث المباشر */}
+            <div className="mb-4">
+                <input 
+                    type="search" 
+                    className="form-control form-control-lg shadow-sm border-0 rounded-pill px-4" 
+                    placeholder="ابحث في الأقسام (بالعنوان أو الوصف)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ backgroundColor: '#f8f9fa' }}
+                />
             </div>
 
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">

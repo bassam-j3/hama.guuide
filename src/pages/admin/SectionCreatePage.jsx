@@ -7,6 +7,7 @@ import { getImageUrl } from '../../api/axiosConfig';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import toast from 'react-hot-toast'; 
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 const SectionCreatePage = () => {
     const navigate = useNavigate();
@@ -18,6 +19,9 @@ const SectionCreatePage = () => {
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState('');
+
+    const isDirty = (formData.title !== '' || formData.slug !== '' || formData.description !== '') && !submitting;
+    useUnsavedChangesGuard(isDirty);
 
     useEffect(() => {
         const loadSections = async () => {

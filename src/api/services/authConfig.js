@@ -17,6 +17,9 @@ export const authService = {
   },
 
   login: async (userName, password) => {
+    if (!userName || !userName.trim() || !password || !password.trim()) {
+      throw new Error("Username and password are required");
+    }
     const response = await axiosInstance.post(`${AUTH_BASE}/login`, { userName, password });
     const authData = {
       access_token: response.token || response.data?.token,

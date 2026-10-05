@@ -10,6 +10,7 @@ import axiosInstance, { getImageUrl } from "../../api/axiosConfig";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import LocationPicker from '../../components/common/LocationPicker';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 const PostEditPage = () => {
     const { serviceSlug, postId } = useParams(); 
@@ -30,6 +31,9 @@ const PostEditPage = () => {
     const [submitting, setSubmitting] = useState(false);
     const [uploadingField, setUploadingField] = useState(null);
     const [status, setStatus] = useState({ type: '', message: '' });
+    const [isDirty, setIsDirty] = useState(false);
+
+    useUnsavedChangesGuard(isDirty && !submitting);
 
     const loadInitialData = useCallback(async () => {
         try {
@@ -95,6 +99,7 @@ const PostEditPage = () => {
         try {
             const res = await uploadFile(file);
             setPayloadData(p => ({ ...p, [key]: res.fileUrl || res }));
+            setIsDirty(true);
         } catch {
             setStatus({ type: 'danger', message: 'فشل الرفع.' });
         } finally {
@@ -155,7 +160,7 @@ const PostEditPage = () => {
                     <div className="card border-0 shadow-sm p-4 rounded-3 mb-4">
                         <div className="mb-4">
                             <label className="form-label fw-bold small text-secondary">العنوان الأساسي <span className="text-danger">*</span></label>
-                            <input type="text" className="form-control form-control-lg border-2 shadow-none" value={coreData.title} onChange={(e) => setCoreData({...coreData, title: e.target.value})} required />
+                            <input type="text" className="form-control form-control-lg border-2 shadow-none" value={coreData.title} onChange={(e) => { setIsDirty(true); setCoreData({...coreData, title: e.target.value}); }} required />
                         </div>
                         <div className="mb-3">
                             <label className="form-label fw-bold small"><GeoAltFill className="me-1"/> الموقع على الخريطة</label>
@@ -165,13 +170,13 @@ const PostEditPage = () => {
                                     <LocationPicker 
                                         key={`loaded-${coreData.latitude}-${coreData.longitude}`}
                                         value={{ lat: coreData.latitude, lng: coreData.longitude }} 
-                                        onChange={({ lat, lng, address: addr }) => setCoreData(p => ({...p, latitude: lat, longitude: lng, addressDisplay: addr}))}
+                                        onChange={({ lat, lng, address: addr }) => { setIsDirty(true); setCoreData(p => ({...p, latitude: lat, longitude: lng, addressDisplay: addr})); }}
                                     />
                                 ) : (
                                     <LocationPicker 
                                         key="new"
                                         value={{ lat: 0, lng: 0 }} 
-                                        onChange={({ lat, lng, address: addr }) => setCoreData(p => ({...p, latitude: lat, longitude: lng, addressDisplay: addr}))}
+                                        onChange={({ lat, lng, address: addr }) => { setIsDirty(true); setCoreData(p => ({...p, latitude: lat, longitude: lng, addressDisplay: addr})); }}
                                     />
                                 )}
 
@@ -230,7 +235,7 @@ const PostEditPage = () => {
                                             if (field.fieldType === 'Bool' || presentationType === 'زر تفعيل') {
                                                 return (
                                                     <div className="form-check form-switch">
-                                                        <input className="form-check-input" type="checkbox" checked={!!payloadData[field.fieldName]} onChange={e => setPayloadData(p => ({...p, [field.fieldName]: e.target.checked}))} />
+                                                        <input className="form-check-input" type="checkbox" checked={!!payloadData[field.fieldName]} onChange={e => { setIsDirty(true); setPayloadData(p => ({...p, [field.fieldName]: e.target.checked})); }} />
                                                     </div>
                                                 );
                                             }
@@ -238,14 +243,14 @@ const PostEditPage = () => {
                                             // 2. النص الطويل
                                             if (presentationType === 'نص طويل' || presentationType === 'كود') {
                                                 return (
-                                                    <textarea className="form-control shadow-none" rows="4" required={field.isRequired} value={payloadData[field.fieldName] || ''} onChange={e => setPayloadData(p => ({...p, [field.fieldName]: e.target.value}))} dir={presentationType === 'كود' ? 'ltr' : 'rtl'} />
+                                                    <textarea className="form-control shadow-none" rows="4" required={field.isRequired} value={payloadData[field.fieldName] || ''} onChange={e => { setIsDirty(true); setPayloadData(p => ({...p, [field.fieldName]: e.target.value})); }} dir={presentationType === 'كود' ? 'ltr' : 'rtl'} />
                                                 );
                                             }
 
                                             // 3. الألوان
                                             if (presentationType === 'لون') {
                                                 return (
-                                                    <input type="color" className="form-control form-control-color shadow-none" required={field.isRequired} value={payloadData[field.fieldName] || '#000000'} onChange={e => setPayloadData(p => ({...p, [field.fieldName]: e.target.value}))} />
+                                                    <input type="color" className="form-control form-control-color shadow-none" required={field.isRequired} value={payloadData[field.fieldName] || '#000000'} onChange={e => { setIsDirty(true); setPayloadData(p => ({...p, [field.fieldName]: e.target.value})); }} />
                                                 );
                                             }
 
@@ -265,7 +270,7 @@ const PostEditPage = () => {
                                                     className="form-control shadow-none" 
                                                     required={field.isRequired} 
                                                     value={payloadData[field.fieldName] || ''} 
-                                                    onChange={e => setPayloadData(p => ({...p, [field.fieldName]: e.target.value}))} 
+                                                    onChange={e => { setIsDirty(true); setPayloadData(p => ({...p, [field.fieldName]: e.target.value})); }} 
                                                     dir={inputType === 'url' || inputType === 'email' || inputType === 'tel' ? 'ltr' : 'rtl'}
                                                 />
                                             );

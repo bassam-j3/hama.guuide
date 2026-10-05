@@ -67,8 +67,10 @@ const ServicesManagementPage = () => {
     };
 
     const filteredServices = services.filter(service => {
-        const matchesSearch = (service.title || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                              (service.slug || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+        const query = debouncedSearchTerm.toLowerCase();
+        const matchesSearch = (service.title || '').toLowerCase().includes(query) || 
+                              (service.slug || '').toLowerCase().includes(query) ||
+                              (service.description || '').toLowerCase().includes(query);
         
         let matchesSection = true;
         if (filterSection === 'ORPHAN') {
@@ -109,19 +111,19 @@ const ServicesManagementPage = () => {
 
             {errorServices && <ErrorMessage message="فشل تحميل الخدمات." />}
 
-            <div className="card border-0 shadow-sm mb-4 bg-white">
+            <div className="card border-0 shadow-sm mb-4 bg-white rounded-4">
                 <div className="card-body p-3">
                     <div className="row g-2">
                         <div className="col-12 col-md-8">
-                            <div className="input-group">
-                                <span className="input-group-text bg-light border-end-0"><Search /></span>
-                                <input type="text" className="form-control border-start-0" placeholder="ابحث باسم الخدمة أو الرابط..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <div className="input-group input-group-lg shadow-sm rounded-pill overflow-hidden">
+                                <span className="input-group-text bg-light border-0 px-4"><Search /></span>
+                                <input type="text" className="form-control border-0 bg-light px-0" placeholder="ابحث في الخدمات (بالعنوان أو الرابط أو الوصف)..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                             </div>
                         </div>
                         <div className="col-12 col-md-4">
-                            <div className="input-group">
-                                <span className="input-group-text bg-light border-end-0"><Funnel /></span>
-                                <select className="form-select border-start-0" value={filterSection} onChange={e => setFilterSection(e.target.value)}>
+                            <div className="input-group input-group-lg shadow-sm rounded-pill overflow-hidden">
+                                <span className="input-group-text bg-light border-0 px-4"><Funnel /></span>
+                                <select className="form-select border-0 bg-light px-0" value={filterSection} onChange={e => setFilterSection(e.target.value)}>
                                     <option value="">كل الأقسام</option>
                                     <option value="ORPHAN" className="text-danger fw-bold">⚠️ بدون قسم (يتيمة)</option>
                                     {sections.map(sec => <option key={sec.id} value={sec.id}>{sec.title}</option>)}

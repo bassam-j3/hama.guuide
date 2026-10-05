@@ -25,24 +25,13 @@ export const fetchSectionsByParent = async (parentId = null, level = null) => {
 };
 
 export const fetchAllSections = async () => {
-    let allSections = [];
-    
-    const fetchRecursive = async (parentId) => {
-        try {
-            const children = await fetchSectionsByParent(parentId);
-            if (!children || children.length === 0) return;
-            
-            allSections.push(...children);
-            
-            const promises = children.map(child => fetchRecursive(child.id));
-            await Promise.allSettled(promises);
-        } catch {
-            // Handled silently to prevent breaking execution loops
-        }
-    };
-
-    await fetchRecursive(null);
-    return allSections;
+    try {
+        const response = await axiosInstance.get(`${API_BASE}/all`);
+        return Array.isArray(response.data) ? response.data : (response.data?.items || []);
+    } catch (error) {
+        if (error.response?.status === 404) return [];
+        throw error;
+    }
 };
 
 export const getSectionById = async (id) => {

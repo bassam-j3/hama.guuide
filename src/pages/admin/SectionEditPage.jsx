@@ -7,6 +7,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import { Save, ArrowRight, Image as ImageIcon, Link45deg } from 'react-bootstrap-icons';
 import toast from 'react-hot-toast';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 import { useUpdateSection } from '../../hooks/api/useSections';
 
@@ -23,6 +24,9 @@ const SectionEditPage = () => {
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState(null);
+    const [isDirty, setIsDirty] = useState(false);
+
+    useUnsavedChangesGuard(isDirty && !submitting);
 
     const loadInitialData = useCallback(async () => {
         try {
@@ -55,6 +59,7 @@ const SectionEditPage = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        setIsDirty(true);
         setFormData(prev => {
             let newValue = value;
             if (name === 'slug') newValue = value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]+/g, '').replace(/--+/g, '-');
@@ -70,6 +75,7 @@ const SectionEditPage = () => {
         try {
             const result = await uploadFile(file);
             setFormData(prev => ({ ...prev, imageUrl: result.fileUrl || result }));
+            setIsDirty(true);
             toast.success('تم رفع الصورة!', { id: toastId }); 
         } catch { 
             toast.error('فشل رفع الصورة.', { id: toastId }); 

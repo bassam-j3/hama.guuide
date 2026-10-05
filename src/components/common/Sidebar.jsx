@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { House, Grid, Gear, BoxArrowRight, ChevronDown, PatchCheck, Collection, FileText, People, XLg, Sliders } from 'react-bootstrap-icons';
+import { House, Grid, Gear, BoxArrowRight, ChevronDown, PatchCheck, Collection, FileText, People, XLg, Sliders, ShieldCheck } from 'react-bootstrap-icons';
 import { fetchAllServices } from '../../api/services/serviceService';
 import { fetchAllSections } from '../../api/services/sectionService';
 import authService from '../../api/services/authConfig';
@@ -113,6 +113,7 @@ const Sidebar = ({ closeSidebar }) => { // 🚀 استقبال دالة الإغ
                             <SidebarItem to="/admin/sections" icon={<Grid size={18} />} label="إدارة الأقسام" closeSidebar={closeSidebar} />
                             <SidebarItem to="/admin/services" icon={<Gear size={18} />} label="إدارة الخدمات" closeSidebar={closeSidebar} />
                             <SidebarItem to="/admin/schema" icon={<Sliders size={18} />} label="إدارة المخططات" closeSidebar={closeSidebar} />
+                            <SidebarItem to="/admin/audit-logs" icon={<ShieldCheck size={18} />} label="سجلات التدقيق" closeSidebar={closeSidebar} />
                         </>
                     )}
 

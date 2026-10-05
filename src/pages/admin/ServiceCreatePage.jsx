@@ -8,6 +8,7 @@ import schemaService from '../../api/services/schemaService';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import SectionTreePicker from '../../components/sections/SectionTreePicker';
 import toast from 'react-hot-toast'; 
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 const getPresentationOptions = (fieldType) => {
     const map = {
@@ -33,6 +34,9 @@ const ServiceCreatePage = () => {
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState(null);
+
+    const isDirty = (formData.title !== '' || formData.description !== '' || formData.slug !== '' || formData.schema.length > 0) && !submitting;
+    useUnsavedChangesGuard(isDirty);
 
     const generateSlug = (text) => text?.toString().toLowerCase().trim().replace(/[\s_]+/g, '-').replace(/[^\w-]+/g, '').replace(/--+/g, '-').replace(/^-+/, '').replace(/-+$/, '') || "";
 

@@ -8,6 +8,7 @@ import axiosInstance, { getImageUrl } from '../../api/axiosConfig';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import LocationPicker from '../../components/common/LocationPicker';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 const PostCreatePage = () => {
     const { serviceSlug } = useParams();
@@ -30,6 +31,9 @@ const PostCreatePage = () => {
     const [uploading, setUploading] = useState(false); 
     const [uploadingField, setUploadingField] = useState(null);
     const [status, setStatus] = useState({ type: '', message: '' });
+
+    const isDirty = (coreData.title !== '' || coreData.latitude !== null) && !submitting;
+    useUnsavedChangesGuard(isDirty);
 
     const initPage = useCallback(async () => {
         try {

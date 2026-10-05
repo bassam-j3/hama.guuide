@@ -4,7 +4,7 @@ const API_BASE = '/Users';
 
 export const userService = {
     getAllUsers: async (currentPage = 1, pageSize = 10, sortBy = "userName", sortAsc = true) => {
-        const params = { CurrentPage: currentPage, PageSize: pageSize, SortBy: sortBy, SortAsc: sortAsc };
+        const params = { currentPage, pageSize, sortBy, sortAsc };
         const response = await axiosInstance.get(API_BASE, { params });
         return response.data; // 🚀 فك الغلاف
     },

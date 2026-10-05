@@ -22,6 +22,7 @@ const PostServiceSelectionPage = lazy(() => import('./pages/admin/PostServiceSel
 const PostsManagementPage = lazy(() => import('./pages/admin/PostsManagementPage'));
 const PostCreatePage = lazy(() => import('./pages/admin/PostCreatePage')); 
 const PostEditPage = lazy(() => import('./pages/admin/PostEditPage'));
+const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
 
 const NotFoundPage = () => (
     <div className="d-flex vh-100 align-items-center justify-content-center text-center bg-light animate-fade-in">
@@ -77,6 +78,7 @@ function App() {
                 <Route path="services/create" element={<ServiceCreatePage />} />
                 <Route path="services/edit/:id" element={<ServiceEditPage />} />
                 <Route path="schema" element={<SchemaManager />} />
+                <Route path="audit-logs" element={<AuditLogsPage />} />
             </Route>
         </Route>
 

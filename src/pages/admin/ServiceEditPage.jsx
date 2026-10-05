@@ -10,6 +10,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage'; 
 import SectionTreePicker from '../../components/sections/SectionTreePicker';
 import toast from 'react-hot-toast'; 
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 
 const getPresentationOptions = (fieldType) => {
     const map = {
@@ -43,6 +44,9 @@ const ServiceEditPage = () => {
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [loadError, setLoadError] = useState(null);
+    const [isDirty, setIsDirty] = useState(false);
+
+    useUnsavedChangesGuard(isDirty && !submitting);
 
     // تعبئة البيانات (Pre-fill) عند وصولها من السيرفر
     useEffect(() => {
@@ -95,12 +99,12 @@ const ServiceEditPage = () => {
         return () => { isMounted = false; };
     }, [serviceData, id]);
 
-    const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.name === 'slug' ? e.target.value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]+/g, '').replace(/--+/g, '-') : e.target.value }));
-    const handleSectionChange = (val) => setFormData(prev => ({ ...prev, sectionId: val }));
+    const handleChange = (e) => { setIsDirty(true); setFormData(p => ({ ...p, [e.target.name]: e.target.name === 'slug' ? e.target.value.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]+/g, '').replace(/--+/g, '-') : e.target.value })); };
+    const handleSectionChange = (val) => { setIsDirty(true); setFormData(prev => ({ ...prev, sectionId: val })); };
 
-    const addField = () => setFormData(p => ({ ...p, schema: [...p.schema, { fieldName: "", fieldType: "String", isRequired: false, presentation: getPresentationOptions("String")[0].value }] }));
-    const updateField = (i, k, v) => setFormData(p => { const s = [...p.schema]; s[i][k] = k === 'fieldName' ? v.replace(/\s+/g, '') : v; return { ...p, schema: s }; });
-    const removeField = (i) => setFormData(p => ({ ...p, schema: p.schema.filter((_, idx) => idx !== i) }));
+    const addField = () => { setIsDirty(true); setFormData(p => ({ ...p, schema: [...p.schema, { fieldName: "", fieldType: "String", isRequired: false, presentation: getPresentationOptions("String")[0].value }] })); };
+    const updateField = (i, k, v) => { setIsDirty(true); setFormData(p => { const s = [...p.schema]; s[i][k] = k === 'fieldName' ? v.replace(/\s+/g, '') : v; return { ...p, schema: s }; }); };
+    const removeField = (i) => { setIsDirty(true); setFormData(p => ({ ...p, schema: p.schema.filter((_, idx) => idx !== i) })); };
     
     const handleFileChange = async (e) => { 
         const file = e.target.files[0];
