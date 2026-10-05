@@ -6,7 +6,7 @@ let envUrl = import.meta.env.VITE_API_BASE_URL;
 if (envUrl && envUrl.includes('1031439526')) {
     envUrl = null; // Force fallback if old dead link is injected
 }
-const API_BASE_URL = envUrl || "https://corsproxy.io/?http://hamaguide-alb-1438235207.eu-north-1.elb.amazonaws.com/api";
+const API_BASE_URL = envUrl || "http://hamaguide-alb-1438235207.eu-north-1.elb.amazonaws.com/api";
 
 // ==========================================
 // 🌟 دالة مساعدة لمعالجة روابط الصور
