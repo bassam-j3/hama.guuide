@@ -67,6 +67,10 @@ const processQueue = (error, token = null) => {
 const responseErrorInterceptor = async (error) => {
     const originalRequest = error.config;
 
+    if (originalRequest.url && (originalRequest.url.includes('/login') || originalRequest.url.includes('/auth/login'))) {
+        return Promise.reject(error);
+    }
+
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
         if (isRefreshing) {
             return new Promise(function(resolve, reject) {
