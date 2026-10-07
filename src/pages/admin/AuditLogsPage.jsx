@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchAuditLogs } from '../../api/services/auditService';
 import { ShieldCheck, PlusCircle, Pencil, Trash, ClockHistory } from 'react-bootstrap-icons';
 import TableSkeleton from '../../components/common/TableSkeleton';
+import toast from 'react-hot-toast';
 
 const AuditLogsPage = () => {
     const [logs, setLogs] = useState([]);
@@ -14,6 +15,11 @@ const AuditLogsPage = () => {
                 setLogs(data);
             } catch (err) {
                 console.error("Failed to load audit logs", err);
+                if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                    toast.error("ليس لديك صلاحية للوصول إلى سجلات التدقيق.");
+                } else {
+                    toast.error("حدث خطأ أثناء جلب سجلات التدقيق.");
+                }
             } finally {
                 setLoading(false);
             }
