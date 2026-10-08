@@ -11,6 +11,7 @@ import { extractErrorMessage } from '../../utils/errorHelper';
 const UsersManagementPage = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isRefetching, setIsRefetching] = useState(false);
     const [error, setError] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -25,8 +26,10 @@ const UsersManagementPage = () => {
     const initialFormState = { userName: '', email: '', phoneNumber: '', password: '', roles: ['Admin'] };
     const [formData, setFormData] = useState(initialFormState);
 
-    const loadUsers = async (page = currentPage) => {
-        setLoading(true); setError(null);
+    const loadUsers = async (page = currentPage, isRefetch = false) => {
+        if (!isRefetch) setLoading(true);
+        else setIsRefetching(true);
+        setError(null);
         try { 
             const data = await userService.getAllUsers(page, pageSize); 
             const userList = data?.items || (Array.isArray(data) ? data : []);
@@ -42,7 +45,8 @@ const UsersManagementPage = () => {
         } catch (err) { 
             setError(extractErrorMessage(err)); 
         } finally { 
-            setLoading(false); 
+            if (!isRefetch) setLoading(false);
+            else setIsRefetching(false);
         }
     };
 
@@ -50,7 +54,7 @@ const UsersManagementPage = () => {
 
     const handlePageChange = (page) => {
         if (page >= 1 && page <= totalPages && page !== currentPage) {
-            loadUsers(page);
+            loadUsers(page, true);
         }
     };
 
@@ -69,12 +73,12 @@ const UsersManagementPage = () => {
         if (!window.confirm(`حذف المستخدم "${name}"؟`)) return;
         try { 
             await userService.deleteUser(id); 
-            toast.success("تم حذف المستخدم بنجاح.");
             if (users.length === 1 && currentPage > 1) {
-                loadUsers(currentPage - 1);
+                await loadUsers(currentPage - 1, true);
             } else {
-                loadUsers(currentPage);
+                await loadUsers(currentPage, true);
             }
+            toast.success("تم حذف المستخدم بنجاح.");
         } catch (err) { 
             toast.error(extractErrorMessage(err)); 
         }
@@ -91,9 +95,11 @@ const UsersManagementPage = () => {
             } else {
                 await userService.createUser(formData);
             }
-            toast.success(isEditing ? "تم تعديل المستخدم بنجاح." : "تم إضافة المستخدم بنجاح.");
+            await loadUsers(isEditing ? currentPage : 1, true);
             setShowModal(false);
-            loadUsers(isEditing ? currentPage : 1);
+            setCurrentUser(null);
+            setFormData(initialFormState);
+            toast.success(isEditing ? "تم تعديل المستخدم بنجاح." : "تم إضافة المستخدم بنجاح.");
         } catch (err) {
             const errorMessage = extractErrorMessage(err) || err.userFriendlyMessage || err.message;
             if (errorMessage && typeof errorMessage === 'string' && errorMessage.includes('\n')) {
@@ -126,7 +132,7 @@ const UsersManagementPage = () => {
 
             {!error && (
                 <>
-                    <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
+                    <div className={`card border-0 shadow-sm rounded-3 overflow-hidden ${isRefetching ? 'opacity-50' : ''}`} style={{ transition: 'opacity 0.2s' }}>
                         <div className="table-responsive">
                             <table className="table table-hover align-middle mb-0">
                                 <thead className="bg-light text-secondary small text-uppercase">
@@ -190,13 +196,13 @@ const UsersManagementPage = () => {
                 <Modal.Header className="border-0 pb-0"><Modal.Title className="fw-bold fs-5">{isEditing ? "تعديل مستخدم" : "إضافة مستخدم"}</Modal.Title></Modal.Header>
                 <Form onSubmit={handleSubmit}>
                     <Modal.Body className="pt-3">
-                        <Form.Group className="mb-3"><Form.Label className="small fw-bold">اسم المستخدم</Form.Label><Form.Control type="text" required value={formData.userName} onChange={e => setFormData({...formData, userName: e.target.value})} /></Form.Group>
-                        <Form.Group className="mb-3"><Form.Label className="small fw-bold">البريد الإلكتروني</Form.Label><Form.Control type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Form.Group>
-                        <Form.Group className="mb-3"><Form.Label className="small fw-bold">رقم الهاتف</Form.Label><Form.Control type="tel" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value})} /></Form.Group>
+                        <Form.Group className="mb-3" controlId="formUserName"><Form.Label className="small fw-bold">اسم المستخدم</Form.Label><Form.Control type="text" required value={formData.userName} onChange={e => setFormData({...formData, userName: e.target.value})} /></Form.Group>
+                        <Form.Group className="mb-3" controlId="formEmail"><Form.Label className="small fw-bold">البريد الإلكتروني</Form.Label><Form.Control type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Form.Group>
+                        <Form.Group className="mb-3" controlId="formPhoneNumber"><Form.Label className="small fw-bold">رقم الهاتف</Form.Label><Form.Control type="tel" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value})} /></Form.Group>
                         {!isEditing && (
-                            <Form.Group className="mb-3"><Form.Label className="small fw-bold">كلمة المرور</Form.Label><Form.Control type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></Form.Group>
+                            <Form.Group className="mb-3" controlId="formPassword"><Form.Label className="small fw-bold">كلمة المرور</Form.Label><Form.Control type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></Form.Group>
                         )}
-                        <Form.Group className="mb-3"><Form.Label className="small fw-bold">الدور</Form.Label><Form.Select value={formData.roles[0]} onChange={e => setFormData({...formData, roles: [e.target.value]})}>
+                        <Form.Group className="mb-3" controlId="formRoles"><Form.Label className="small fw-bold">الدور</Form.Label><Form.Select value={formData.roles[0]} onChange={e => setFormData({...formData, roles: [e.target.value]})}>
                             <option value="Admin">Admin</option><option value="User">User</option><option value="SuperAdmin">SuperAdmin</option><option value="ServiceAdmin">ServiceAdmin</option>
                         </Form.Select></Form.Group>
                     </Modal.Body>
