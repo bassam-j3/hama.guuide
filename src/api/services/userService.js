@@ -53,4 +53,5 @@ export const userService = {
         const response = await axiosInstance.delete(`${API_BASE}/${id}`);
         return response.data;
     }
-};
+};
+

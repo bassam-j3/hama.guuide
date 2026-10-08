@@ -63,10 +63,10 @@ const UsersManagementPage = () => {
             setShowModal(false);
             loadUsers();
         } catch (err) {
-            const errorMessage = extractErrorMessage(err);
-            if (errorMessage.includes('\n')) {
-                errorMessage.split('\n').forEach(msg => toast.error(msg));
-            } else {
+            const errorMessage = extractErrorMessage(err) || err.userFriendlyMessage || err.message;
+            if (errorMessage && typeof errorMessage === 'string' && errorMessage.includes('\n')) {
+                errorMessage.split('\n').map(s => s.trim()).filter(Boolean).forEach(msg => toast.error(msg));
+            } else if (errorMessage) {
                 toast.error(errorMessage);
             }
         } finally {

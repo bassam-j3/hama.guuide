@@ -24,42 +24,47 @@ export const extractErrorMessage = (error, defaultMessage = DEFAULT_ERROR_MESSAG
         return error.response.data.trim();
     }
 
-    const data = error.response?.data;
+    const data = error.response?.data || error.data;
 
     if (data && typeof data === 'object') {
-        // 3. Identity errors: array of objects with description/message, or array of strings
+        const messages = [];
+
+        // 3. Identity errors: array of objects with description/code (case-insensitive/PascalCase)
         const identityErrors = Array.isArray(data) 
             ? data 
-            : (Array.isArray(data.errors) ? data.errors : null);
+            : (Array.isArray(data.errors) ? data.errors : (Array.isArray(data.Errors) ? data.Errors : null));
 
         if (identityErrors && identityErrors.length > 0) {
-            const messages = identityErrors
-                .map(e => {
-                    if (typeof e === 'string' && e.trim()) return e.trim();
-                    if (e && typeof e === 'object') {
-                        if (typeof e.description === 'string' && e.description.trim()) return e.description.trim();
-                        if (typeof e.message === 'string' && e.message.trim()) return e.message.trim();
+            identityErrors.forEach(e => {
+                if (typeof e === 'string' && e.trim()) {
+                    messages.push(e.trim());
+                } else if (e && typeof e === 'object') {
+                    const desc = e.description || e.Description || e.message || e.Message;
+                    const code = e.code || e.Code;
+                    if (typeof desc === 'string' && desc.trim()) {
+                        messages.push(desc.trim());
+                    } else if (typeof code === 'string' && code.trim()) {
+                        messages.push(code.trim());
                     }
-                    return null;
-                })
-                .filter(Boolean);
+                }
+            });
 
             if (messages.length > 0) {
                 return messages.join('\n');
             }
         }
 
-        // 4. ASP.NET ModelState validation dictionary in error.response.data.errors: extract all strings and join
-        if (data.errors && typeof data.errors === 'object' && !Array.isArray(data.errors)) {
-            const messages = [];
-            for (const key of Object.keys(data.errors)) {
-                const val = data.errors[key];
+        // 4. ASP.NET ModelState/FluentValidation dictionary in error.response.data.errors or Errors
+        const validationErrors = data.errors || data.Errors;
+        if (validationErrors && typeof validationErrors === 'object' && !Array.isArray(validationErrors)) {
+            for (const key of Object.keys(validationErrors)) {
+                const val = validationErrors[key];
                 if (Array.isArray(val)) {
                     val.forEach(item => {
                         if (typeof item === 'string' && item.trim()) {
                             messages.push(item.trim());
                         } else if (item && typeof item === 'object') {
-                            const desc = item.description || item.message;
+                            const desc = item.description || item.Description || item.message || item.Message;
                             if (typeof desc === 'string' && desc.trim()) {
                                 messages.push(desc.trim());
                             }
@@ -74,17 +79,20 @@ export const extractErrorMessage = (error, defaultMessage = DEFAULT_ERROR_MESSAG
             }
         }
 
-        // 5. ASP.NET ProblemDetails: error.response.data.detail, then error.response.data.title, then error.response.data.message
-        if (typeof data.detail === 'string' && data.detail.trim()) {
-            return data.detail.trim();
+        // 5. ASP.NET ProblemDetails: detail/Detail, then title/Title, then message/Message
+        const detail = data.detail || data.Detail;
+        if (typeof detail === 'string' && detail.trim()) {
+            return detail.trim();
         }
 
-        if (typeof data.title === 'string' && data.title.trim()) {
-            return data.title.trim();
+        const title = data.title || data.Title;
+        if (typeof title === 'string' && title.trim()) {
+            return title.trim();
         }
 
-        if (typeof data.message === 'string' && data.message.trim()) {
-            return data.message.trim();
+        const message = data.message || data.Message;
+        if (typeof message === 'string' && message.trim()) {
+            return message.trim();
         }
     }
 

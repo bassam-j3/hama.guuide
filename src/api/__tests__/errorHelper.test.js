@@ -95,4 +95,62 @@ describe('extractErrorMessage', () => {
         const error = new Error('Network Error');
         expect(extractErrorMessage(error)).toBe('Network Error');
     });
+
+    it('extracts Identity errors with PascalCase properties and username validation messages', () => {
+        const error = {
+            response: {
+                status: 400,
+                data: [
+                    {
+                        Code: 'InvalidUserName',
+                        Description: "Username 'BASSAM JAMMAL' is invalid, can only contain letters or digits."
+                    }
+                ]
+            }
+        };
+        expect(extractErrorMessage(error)).toBe(
+            "Username 'BASSAM JAMMAL' is invalid, can only contain letters or digits."
+        );
+    });
+
+    it('extracts Identity code when description is not provided', () => {
+        const error = {
+            response: {
+                status: 400,
+                data: [{ code: 'DuplicateUserName' }]
+            }
+        };
+        expect(extractErrorMessage(error)).toBe('DuplicateUserName');
+    });
+
+    it('extracts PascalCase Detail from ProblemDetails', () => {
+        const error = {
+            response: {
+                status: 400,
+                data: {
+                    Detail: "Username 'BASSAM JAMMAL' is invalid, can only contain letters or digits."
+                }
+            }
+        };
+        expect(extractErrorMessage(error)).toBe(
+            "Username 'BASSAM JAMMAL' is invalid, can only contain letters or digits."
+        );
+    });
+
+    it('extracts PascalCase Errors dictionary from FluentValidation', () => {
+        const error = {
+            response: {
+                status: 400,
+                data: {
+                    Errors: {
+                        UserName: ["Username 'BASSAM JAMMAL' is invalid, can only contain letters or digits."]
+                    }
+                }
+            }
+        };
+        expect(extractErrorMessage(error)).toBe(
+            "Username 'BASSAM JAMMAL' is invalid, can only contain letters or digits."
+        );
+    });
 });
+
