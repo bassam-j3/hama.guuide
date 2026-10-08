@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getAuthData, setAuthData, clearAuthData } from './services/tokenService';
 import { authEvents } from '../utils/authEvents';
+import { extractErrorMessage } from '../utils/errorHelper';
 
 let envUrl = import.meta.env.VITE_API_BASE_URL;
 if (envUrl && envUrl.includes('1031439526')) {
@@ -65,20 +66,24 @@ const processQueue = (error, token = null) => {
 };
 
 const responseErrorInterceptor = async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error?.config;
 
-    if (originalRequest.url && (originalRequest.url.includes('/login') || originalRequest.url.includes('/auth/login'))) {
+    if (originalRequest?.url && (originalRequest.url.includes('/login') || originalRequest.url.includes('/auth/login'))) {
+        if (error) error.userFriendlyMessage = extractErrorMessage(error);
         return Promise.reject(error);
     }
 
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    if (error?.response && error.response.status === 401 && !originalRequest?._retry) {
         if (isRefreshing) {
             return new Promise(function(resolve, reject) {
                 failedQueue.push({ resolve, reject });
             }).then(token => {
                 originalRequest.headers.Authorization = `Bearer ${token}`;
                 return axios(originalRequest);
-            }).catch(err => Promise.reject(err));
+            }).catch(err => {
+                if (err) err.userFriendlyMessage = extractErrorMessage(err);
+                return Promise.reject(err);
+            });
         }
 
         originalRequest._retry = true;
@@ -113,11 +118,13 @@ const responseErrorInterceptor = async (error) => {
             processQueue(refreshError, null);
             clearAuthData(); 
             authEvents.emit('logout'); // 🚀 Emits event smoothly instead of window.location crash
+            if (refreshError) refreshError.userFriendlyMessage = extractErrorMessage(refreshError);
             return Promise.reject(refreshError);
         } finally {
             isRefreshing = false;
         }
     }
+    if (error) error.userFriendlyMessage = extractErrorMessage(error);
     return Promise.reject(error);
 };
 

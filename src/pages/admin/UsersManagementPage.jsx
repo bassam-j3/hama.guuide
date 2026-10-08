@@ -4,6 +4,8 @@ import { PersonPlus, PencilSquare, Trash, PersonBadge, Envelope, Telephone, Shie
 import { userService } from '../../api/services/userService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import toast from 'react-hot-toast';
+import { extractErrorMessage } from '../../utils/errorHelper';
 
 const UsersManagementPage = () => {
     const [users, setUsers] = useState([]);
@@ -20,7 +22,7 @@ const UsersManagementPage = () => {
     const loadUsers = async () => {
         setLoading(true); setError(null);
         try { const data = await userService.getAllUsers(); setUsers(Array.isArray(data) ? data : []); } 
-        catch { setError("فشل تحميل المستخدمين."); } finally { setLoading(false); }
+        catch (err) { setError(extractErrorMessage(err)); } finally { setLoading(false); }
     };
 
     useEffect(() => { loadUsers(); }, []);
@@ -38,16 +40,42 @@ const UsersManagementPage = () => {
 
     const handleDelete = async (id, name) => {
         if (!window.confirm(`حذف المستخدم "${name}"؟`)) return;
-        try { await userService.deleteUser(id); setUsers(prev => prev.filter(u => u.id !== id)); } catch { alert("خطأ بالحذف."); }
+        try { 
+            await userService.deleteUser(id); 
+            setUsers(prev => prev.filter(u => u.id !== id)); 
+            toast.success("تم حذف المستخدم بنجاح.");
+        } catch (err) { 
+            toast.error(extractErrorMessage(err)); 
+        }
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault(); setSubmitting(true);
-        try {
-            if (isEditing) await userService.updateUser(currentUser.id, formData);
-            else await userService.createUser(formData);
-            setShowModal(false); loadUsers(); 
-        } catch { alert("فشل الحفظ."); } finally { setSubmitting(false); }
+        e.preventDefault();
+        setSubmitting(true);
+
+        if (isEditing) {
+            try {
+                await userService.updateUser(currentUser.id, formData);
+                toast.success("تم تعديل المستخدم بنجاح.");
+                setShowModal(false);
+                loadUsers();
+            } catch (err) {
+                toast.error(extractErrorMessage(err));
+            } finally {
+                setSubmitting(false);
+            }
+        } else {
+            try {
+                await userService.createUser(formData);
+                toast.success("تم إضافة المستخدم بنجاح.");
+                setShowModal(false);
+                loadUsers();
+            } catch (err) {
+                toast.error(extractErrorMessage(err));
+            } finally {
+                setSubmitting(false);
+            }
+        }
     };
 
     if (loading) return <LoadingSpinner message="جاري تحميل المستخدمين..." />;
