@@ -45,7 +45,7 @@ export const extractErrorMessage = (error, defaultMessage = DEFAULT_ERROR_MESSAG
                 .filter(Boolean);
 
             if (messages.length > 0) {
-                return messages.join(' - ');
+                return messages.join('\n');
             }
         }
 
@@ -70,7 +70,7 @@ export const extractErrorMessage = (error, defaultMessage = DEFAULT_ERROR_MESSAG
                 }
             }
             if (messages.length > 0) {
-                return messages.join(' - ');
+                return messages.join('\n');
             }
         }
 

@@ -35,7 +35,7 @@ describe('extractErrorMessage', () => {
             }
         };
         expect(extractErrorMessage(error)).toBe(
-            'Passwords must have at least one non alphanumeric character. - The Email field is not a valid e-mail address.'
+            'Passwords must have at least one non alphanumeric character.\nThe Email field is not a valid e-mail address.'
         );
     });
 
@@ -50,7 +50,7 @@ describe('extractErrorMessage', () => {
             }
         };
         expect(extractErrorMessage(error)).toBe(
-            'Password requires a non-alphanumeric character - Password must be at least 6 characters'
+            'Password requires a non-alphanumeric character\nPassword must be at least 6 characters'
         );
     });
 

@@ -53,30 +53,27 @@ const UsersManagementPage = () => {
         e.preventDefault();
         setSubmitting(true);
 
-        if (isEditing) {
-            try {
+        try {
+            if (isEditing) {
                 await userService.updateUser(currentUser.id, formData);
-                toast.success("تم تعديل المستخدم بنجاح.");
-                setShowModal(false);
-                loadUsers();
-            } catch (err) {
-                toast.error(extractErrorMessage(err));
-            } finally {
-                setSubmitting(false);
-            }
-        } else {
-            try {
+            } else {
                 await userService.createUser(formData);
-                toast.success("تم إضافة المستخدم بنجاح.");
-                setShowModal(false);
-                loadUsers();
-            } catch (err) {
-                toast.error(extractErrorMessage(err));
-            } finally {
-                setSubmitting(false);
             }
+            toast.success(isEditing ? "تم تعديل المستخدم بنجاح." : "تم إضافة المستخدم بنجاح.");
+            setShowModal(false);
+            loadUsers();
+        } catch (err) {
+            const errorMessage = extractErrorMessage(err);
+            if (errorMessage.includes('\n')) {
+                errorMessage.split('\n').forEach(msg => toast.error(msg));
+            } else {
+                toast.error(errorMessage);
+            }
+        } finally {
+            setSubmitting(false);
         }
     };
+
 
     if (loading) return <LoadingSpinner message="جاري تحميل المستخدمين..." />;
 
@@ -124,7 +121,7 @@ const UsersManagementPage = () => {
                                         </td>
                                         <td>
                                             {user.roles && user.roles.map((role, idx) => (
-                                                <Badge key={idx} bg={role === 'SuperAdmin' ? 'danger' : (role === 'Admin' ? 'success' : 'secondary')} className="me-1 px-2 py-1">{role}</Badge>
+                                                <Badge key={idx} bg={role === 'SuperAdmin' ? 'danger' : (role === 'Admin' ? 'success' : (role === 'ServiceAdmin' ? 'warning text-dark' : 'secondary'))} className="me-1 px-2 py-1">{role}</Badge>
                                             ))}
                                         </td>
                                         <td className="d-none d-md-table-cell">
@@ -159,7 +156,7 @@ const UsersManagementPage = () => {
                             <Form.Group className="mb-3"><Form.Label className="small fw-bold">كلمة المرور</Form.Label><Form.Control type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></Form.Group>
                         )}
                         <Form.Group className="mb-3"><Form.Label className="small fw-bold">الدور</Form.Label><Form.Select value={formData.roles[0]} onChange={e => setFormData({...formData, roles: [e.target.value]})}>
-                            <option value="User">User</option><option value="Admin">Admin</option><option value="SuperAdmin">SuperAdmin</option>
+                            <option value="Admin">Admin</option><option value="User">User</option><option value="SuperAdmin">SuperAdmin</option><option value="ServiceAdmin">ServiceAdmin</option>
                         </Form.Select></Form.Group>
                     </Modal.Body>
                     <Modal.Footer className="border-0 pt-0">

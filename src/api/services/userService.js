@@ -2,6 +2,26 @@ import axiosInstance from '../axiosConfig';
 
 const API_BASE = '/Users';
 
+const formatUserPayload = (userData) => {
+    let phoneNumber = userData.phoneNumber;
+    if (!phoneNumber || (typeof phoneNumber === 'string' && phoneNumber.trim() === '')) {
+        phoneNumber = null;
+    } else if (typeof phoneNumber === 'string') {
+        phoneNumber = phoneNumber.replace(/[\s+]/g, '');
+    }
+
+    const roles = Array.isArray(userData.roles) && userData.roles.length > 0 
+        ? userData.roles[0] 
+        : (userData.roles || 'Admin');
+
+    return {
+        userName: userData.userName,
+        email: userData.email,
+        phoneNumber,
+        roles
+    };
+};
+
 export const userService = {
     getAllUsers: async (currentPage = 1, pageSize = 10, sortBy = "userName", sortAsc = true) => {
         const params = { currentPage, pageSize, sortBy, sortAsc };
@@ -16,9 +36,7 @@ export const userService = {
 
     createUser: async (userData) => {
         const payload = {
-            userName: userData.userName,
-            email: userData.email,
-            phoneNumber: userData.phoneNumber || null,
+            ...formatUserPayload(userData),
             password: userData.password
         };
         const response = await axiosInstance.post(API_BASE, payload);
@@ -26,11 +44,7 @@ export const userService = {
     },
 
     updateUser: async (id, userData) => {
-        const payload = {
-            userName: userData.userName,
-            email: userData.email,
-            phoneNumber: userData.phoneNumber || null
-        };
+        const payload = formatUserPayload(userData);
         const response = await axiosInstance.put(`${API_BASE}/${id}`, payload);
         return response.data;
     },
@@ -39,4 +53,4 @@ export const userService = {
         const response = await axiosInstance.delete(`${API_BASE}/${id}`);
         return response.data;
     }
-};
+};
