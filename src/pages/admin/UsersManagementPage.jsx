@@ -4,6 +4,7 @@ import { PersonPlus, PencilSquare, Trash, PersonBadge, Envelope, Telephone, Shie
 import { userService } from '../../api/services/userService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import Pagination from '../../components/common/Pagination';
 import toast from 'react-hot-toast';
 import { extractErrorMessage } from '../../utils/errorHelper';
 
@@ -16,16 +17,42 @@ const UsersManagementPage = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const pageSize = 10;
+
     const initialFormState = { userName: '', email: '', phoneNumber: '', password: '', roles: ['Admin'] };
     const [formData, setFormData] = useState(initialFormState);
 
-    const loadUsers = async () => {
+    const loadUsers = async (page = currentPage) => {
         setLoading(true); setError(null);
-        try { const data = await userService.getAllUsers(); setUsers(Array.isArray(data) ? data : []); } 
-        catch (err) { setError(extractErrorMessage(err)); } finally { setLoading(false); }
+        try { 
+            const data = await userService.getAllUsers(page, pageSize); 
+            const userList = data?.items || (Array.isArray(data) ? data : []);
+            
+            setUsers(userList);
+
+            const total = data?.totalCount ?? userList.length;
+            const pages = data?.totalPages ?? Math.max(1, Math.ceil(total / pageSize));
+
+            setTotalCount(total);
+            setTotalPages(pages);
+            setCurrentPage(page);
+        } catch (err) { 
+            setError(extractErrorMessage(err)); 
+        } finally { 
+            setLoading(false); 
+        }
     };
 
-    useEffect(() => { loadUsers(); }, []);
+    useEffect(() => { loadUsers(1); }, []);
+
+    const handlePageChange = (page) => {
+        if (page >= 1 && page <= totalPages && page !== currentPage) {
+            loadUsers(page);
+        }
+    };
 
     const handleShow = (user = null) => {
         setError(null);
@@ -42,12 +69,17 @@ const UsersManagementPage = () => {
         if (!window.confirm(`حذف المستخدم "${name}"؟`)) return;
         try { 
             await userService.deleteUser(id); 
-            setUsers(prev => prev.filter(u => u.id !== id)); 
             toast.success("تم حذف المستخدم بنجاح.");
+            if (users.length === 1 && currentPage > 1) {
+                loadUsers(currentPage - 1);
+            } else {
+                loadUsers(currentPage);
+            }
         } catch (err) { 
             toast.error(extractErrorMessage(err)); 
         }
     };
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -61,7 +93,7 @@ const UsersManagementPage = () => {
             }
             toast.success(isEditing ? "تم تعديل المستخدم بنجاح." : "تم إضافة المستخدم بنجاح.");
             setShowModal(false);
-            loadUsers();
+            loadUsers(isEditing ? currentPage : 1);
         } catch (err) {
             const errorMessage = extractErrorMessage(err) || err.userFriendlyMessage || err.message;
             if (errorMessage && typeof errorMessage === 'string' && errorMessage.includes('\n')) {
@@ -83,7 +115,7 @@ const UsersManagementPage = () => {
             <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-3 p-md-4 rounded-3 shadow-sm border flex-wrap gap-3">
                 <div>
                     <h3 className="fw-bold mb-1 text-primary d-flex align-items-center gap-2"><People /> إدارة المستخدمين</h3>
-                    <p className="text-muted small mb-0">نظام إدارة الصلاحيات والحسابات.</p>
+                    <p className="text-muted small mb-0">نظام إدارة الصلاحيات والحسابات ({totalCount} مستخدم).</p>
                 </div>
                 <button className="btn btn-primary btn-sm px-4 py-2 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2 w-100 w-md-auto" onClick={() => handleShow(null)}>
                     <PersonPlus size={18} /> إضافة مستخدم
@@ -93,56 +125,65 @@ const UsersManagementPage = () => {
             {error && <ErrorMessage message={error} onRetry={loadUsers} />}
 
             {!error && (
-                <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
-                    <div className="table-responsive">
-                        <table className="table table-hover align-middle mb-0">
-                            <thead className="bg-light text-secondary small text-uppercase">
-                                <tr>
-                                    <th className="ps-3 ps-md-4 py-3">المستخدم</th>
-                                    <th className="py-3">الدور (Role)</th>
-                                    {/* 🚀 إخفاء معلومات الاتصال في الجوال لتوفير المساحة */}
-                                    <th className="py-3 d-none d-md-table-cell">معلومات الاتصال</th>
-                                    <th className="text-center py-3">إجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {users.length > 0 ? users.map(user => (
-                                    <tr key={user.id}>
-                                        <td className="ps-3 ps-md-4">
-                                            <div className="d-flex align-items-center gap-2 gap-md-3">
-                                                <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{width: 40, height: 40}}><PersonBadge size={20} /></div>
-                                                <div>
-                                                    <div className="fw-bold text-dark">{user.userName}</div>
-                                                    {/* 🚀 إظهار الإيميل تحت الاسم في الجوال فقط */}
-                                                    <div className="d-block d-md-none small text-muted text-truncate" style={{maxWidth:'150px'}}>{user.email}</div>
-                                                    <small className="text-muted d-none d-md-block" style={{fontSize: '0.7rem'}}>ID: {user.id.substring(0,6)}..</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            {user.roles && user.roles.map((role, idx) => (
-                                                <Badge key={idx} bg={role === 'SuperAdmin' ? 'danger' : (role === 'Admin' ? 'success' : (role === 'ServiceAdmin' ? 'warning text-dark' : 'secondary'))} className="me-1 px-2 py-1">{role}</Badge>
-                                            ))}
-                                        </td>
-                                        <td className="d-none d-md-table-cell">
-                                            <div className="d-flex flex-column small">
-                                                <span className="text-muted mb-1"><Envelope className="me-1"/> {user.email}</span>
-                                                {user.phoneNumber && <span className="text-muted"><Telephone className="me-1"/> {user.phoneNumber}</span>}
-                                            </div>
-                                        </td>
-                                        <td className="text-center px-2">
-                                            <div className="d-flex justify-content-center gap-1 gap-md-2">
-                                                <button className="btn btn-sm btn-light border text-primary" onClick={() => handleShow(user)}><PencilSquare /></button>
-                                                <button className="btn btn-sm btn-light border text-danger" onClick={() => handleDelete(user.id, user.userName)}><Trash /></button>
-                                            </div>
-                                        </td>
+                <>
+                    <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
+                        <div className="table-responsive">
+                            <table className="table table-hover align-middle mb-0">
+                                <thead className="bg-light text-secondary small text-uppercase">
+                                    <tr>
+                                        <th className="ps-3 ps-md-4 py-3">المستخدم</th>
+                                        <th className="py-3">الدور (Role)</th>
+                                        {/* 🚀 إخفاء معلومات الاتصال في الجوال لتوفير المساحة */}
+                                        <th className="py-3 d-none d-md-table-cell">معلومات الاتصال</th>
+                                        <th className="text-center py-3">إجراءات</th>
                                     </tr>
-                                )) : <tr><td colSpan="4" className="text-center py-5 text-muted">لا يوجد مستخدمين.</td></tr>}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {users.length > 0 ? users.map(user => (
+                                        <tr key={user.id}>
+                                            <td className="ps-3 ps-md-4">
+                                                <div className="d-flex align-items-center gap-2 gap-md-3">
+                                                    <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{width: 40, height: 40}}><PersonBadge size={20} /></div>
+                                                    <div>
+                                                        <div className="fw-bold text-dark">{user.userName}</div>
+                                                        {/* 🚀 إظهار الإيميل تحت الاسم في الجوال فقط */}
+                                                        <div className="d-block d-md-none small text-muted text-truncate" style={{maxWidth:'150px'}}>{user.email}</div>
+                                                        <small className="text-muted d-none d-md-block" style={{fontSize: '0.7rem'}}>ID: {user.id.substring(0,6)}..</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {user.roles && user.roles.map((role, idx) => (
+                                                    <Badge key={idx} bg={role === 'SuperAdmin' ? 'danger' : (role === 'Admin' ? 'success' : (role === 'ServiceAdmin' ? 'warning text-dark' : 'secondary'))} className="me-1 px-2 py-1">{role}</Badge>
+                                                ))}
+                                            </td>
+                                            <td className="d-none d-md-table-cell">
+                                                <div className="d-flex flex-column small">
+                                                    <span className="text-muted mb-1"><Envelope className="me-1"/> {user.email}</span>
+                                                    {user.phoneNumber && <span className="text-muted"><Telephone className="me-1"/> {user.phoneNumber}</span>}
+                                                </div>
+                                            </td>
+                                            <td className="text-center px-2">
+                                                <div className="d-flex justify-content-center gap-1 gap-md-2">
+                                                    <button className="btn btn-sm btn-light border text-primary" onClick={() => handleShow(user)}><PencilSquare /></button>
+                                                    <button className="btn btn-sm btn-light border text-danger" onClick={() => handleDelete(user.id, user.userName)}><Trash /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )) : <tr><td colSpan="4" className="text-center py-5 text-muted">لا يوجد مستخدمين.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+
+                    <Pagination 
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                    />
+                </>
             )}
+
 
             <Modal show={showModal} onHide={() => setShowModal(false)} centered dir="rtl">
                 {/* تم اختصار كود المودال لأنه متجاوب بطبيعته */}

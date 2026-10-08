@@ -83,4 +83,25 @@ describe('userService', () => {
             });
         });
     });
+
+    describe('getAllUsers', () => {
+        it('fetches users with pagination params and returns paginated response', async () => {
+            const mockPaginatedData = {
+                items: [{ id: 'u1', userName: 'admin', roles: ['Admin'] }],
+                totalCount: 1,
+                page: 1,
+                pageSize: 10,
+                totalPages: 1
+            };
+            axiosInstance.get.mockResolvedValueOnce({ data: mockPaginatedData });
+
+            const result = await userService.getAllUsers(1, 10, 'userName', true);
+
+            expect(axiosInstance.get).toHaveBeenCalledWith('/Users', {
+                params: { currentPage: 1, pageSize: 10, sortBy: 'userName', sortAsc: true }
+            });
+            expect(result).toEqual(mockPaginatedData);
+        });
+    });
 });
+

@@ -26,8 +26,16 @@ export const userService = {
     getAllUsers: async (currentPage = 1, pageSize = 10, sortBy = "userName", sortAsc = true) => {
         const params = { currentPage, pageSize, sortBy, sortAsc };
         const response = await axiosInstance.get(API_BASE, { params });
-        return response.data; // 🚀 فك الغلاف
+        const data = response.data;
+        const items = Array.isArray(data) 
+            ? data 
+            : (Array.isArray(data?.items) ? data.items : (Array.isArray(data?.Items) ? data.Items : []));
+        const totalCount = data?.totalCount ?? data?.TotalCount ?? items.length;
+        const totalPages = data?.totalPages ?? data?.TotalPages ?? Math.max(1, Math.ceil(totalCount / pageSize));
+
+        return { items, totalCount, totalPages, page: currentPage, pageSize };
     },
+
 
     getUserById: async (id) => {
         const response = await axiosInstance.get(`${API_BASE}/${id}`);
