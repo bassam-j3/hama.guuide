@@ -1,10 +1,12 @@
-import React, { lazy, useEffect } from 'react'; 
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom'; 
+import React, { lazy, useEffect, Suspense } from 'react'; 
+import { createBrowserRouter, RouterProvider, Navigate, Link, useNavigate, Outlet } from 'react-router-dom'; 
 import 'bootstrap/dist/css/bootstrap.rtl.min.css'; 
 
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import LoginPage from './components/auth/LoginPage';
 import DashboardLayout from './layouts/DashboardLayout';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import LoadingSpinner from './components/common/LoadingSpinner';
 import ResetPasswordPage from './components/auth/ResetPasswordPage';
 import { authEvents } from './utils/authEvents';
 
@@ -50,42 +52,68 @@ const AuthEventHandler = () => {
     return null; 
 };
 
+// Root layout to hold the AuthEventHandler inside the router context
+const RootLayout = () => (
+    <>
+        <AuthEventHandler />
+        <Suspense fallback={
+            <div className="d-flex align-items-center justify-content-center vh-100 bg-light">
+                <LoadingSpinner message="جاري التحميل..." />
+            </div>
+        }>
+            <Outlet />
+        </Suspense>
+    </>
+);
+
+
+const router = createBrowserRouter([
+    {
+        element: <RootLayout />,
+        errorElement: <ErrorBoundary />,
+        children: [
+            { path: "/login", element: <LoginPage /> },
+            { path: "/reset-password", element: <ResetPasswordPage /> },
+            {
+                path: "/admin",
+                element: <DashboardLayout />,
+                errorElement: <ErrorBoundary />,
+                children: [
+                    {
+                        element: <ProtectedRoute />,
+                        children: [
+                            { index: true, element: <DashboardPage /> },
+                            { path: "profile", element: <ProfilePage /> },
+                            { path: "posts", element: <PostServiceSelectionPage /> },
+                            { path: "posts/:serviceSlug", element: <PostsManagementPage /> },
+                            { path: "services/:serviceSlug/posts/create", element: <PostCreatePage /> },
+                            { path: "services/:serviceSlug/posts/edit/:postId", element: <PostEditPage /> }
+                        ]
+                    },
+                    {
+                        element: <ProtectedRoute requireSuperAdmin={true} />,
+                        children: [
+                            { path: "users", element: <UsersManagementPage /> },
+                            { path: "sections", element: <SectionsManagementPage /> },
+                            { path: "sections/create", element: <SectionCreatePage /> },
+                            { path: "sections/edit/:id", element: <SectionEditPage /> },
+                            { path: "services", element: <ServicesManagementPage /> },
+                            { path: "services/create", element: <ServiceCreatePage /> },
+                            { path: "services/edit/:id", element: <ServiceEditPage /> },
+                            { path: "schema", element: <SchemaManager /> }
+                        ]
+                    }
+                ]
+            },
+            { path: "/", element: <Navigate to="/admin" replace /> },
+            { path: "*", element: <NotFoundPage /> }
+        ]
+    }
+]);
+
+
 function App() {
-  return (
-    <Router>
-      <AuthEventHandler />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-
-        <Route path="/admin" element={<DashboardLayout />}>
-            <Route element={<ProtectedRoute />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="profile" element={<ProfilePage />} />
-                <Route path="posts" element={<PostServiceSelectionPage />} />
-                <Route path="posts/:serviceSlug" element={<PostsManagementPage />} />
-                <Route path="services/:serviceSlug/posts/create" element={<PostCreatePage />} />
-                <Route path="services/:serviceSlug/posts/edit/:postId" element={<PostEditPage />} />
-            </Route>
-
-            <Route element={<ProtectedRoute requireSuperAdmin={true} />}>
-                <Route path="users" element={<UsersManagementPage />} />
-                <Route path="sections" element={<SectionsManagementPage />} />
-                <Route path="sections/create" element={<SectionCreatePage />} />
-                <Route path="sections/edit/:id" element={<SectionEditPage />} />
-                <Route path="services" element={<ServicesManagementPage />} />
-                <Route path="services/create" element={<ServiceCreatePage />} />
-                <Route path="services/edit/:id" element={<ServiceEditPage />} />
-                <Route path="schema" element={<SchemaManager />} />
-            </Route>
-        </Route>
-
-        <Route path="/" element={<Navigate to="/admin" replace />} />
-        <Route path="*" element={<NotFoundPage />} />
-        
-      </Routes>
-    </Router>
-  );
+  return <RouterProvider router={router} />;
 }
 
 export default App;

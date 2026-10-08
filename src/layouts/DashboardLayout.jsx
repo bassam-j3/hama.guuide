@@ -3,7 +3,8 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/common/Sidebar';
 import Navbar from '../components/common/Navbar';
 import { Toaster } from 'react-hot-toast';
-import ErrorBoundary from '../components/common/ErrorBoundary'; // 🚀 استيراد ErrorBoundary
+
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import LoadingSpinner from '../components/common/LoadingSpinner'; // 🚀 استيراد LoadingSpinner
 
 const DashboardLayout = () => {
@@ -58,7 +59,6 @@ const DashboardLayout = () => {
 
         <main className="p-3 p-md-4 flex-grow-1" key={`main-${globalRefreshKey}`}>
           <div className="container-fluid p-0">
-            {/* 🚀 هنا السحر: جدار الحماية والتحميل يغلفان הـ Outlet مباشرة */}
             <ErrorBoundary>
               <Suspense fallback={
                 <div className="d-flex align-items-center justify-content-center p-5" style={{ minHeight: '60vh' }}>
