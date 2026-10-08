@@ -52,6 +52,20 @@ const UsersManagementPage = () => {
 
     useEffect(() => { loadUsers(1); }, []);
 
+    useEffect(() => {
+        if (currentUser) {
+            setFormData({
+                userName: currentUser.userName || '',
+                email: currentUser.email || '',
+                phoneNumber: currentUser.phoneNumber || '',
+                password: '',
+                roles: Array.isArray(currentUser.roles) && currentUser.roles.length > 0 ? currentUser.roles : ['Admin']
+            });
+        } else {
+            setFormData(initialFormState);
+        }
+    }, [currentUser]);
+
     const handlePageChange = (page) => {
         if (page >= 1 && page <= totalPages && page !== currentPage) {
             loadUsers(page, true);
@@ -61,12 +75,29 @@ const UsersManagementPage = () => {
     const handleShow = (user = null) => {
         setError(null);
         if (user) {
-            setIsEditing(true); setCurrentUser(user);
-            setFormData({ userName: user.userName || '', email: user.email || '', phoneNumber: user.phoneNumber || '', password: '', roles: user.roles && user.roles.length > 0 ? user.roles : ['Admin'] });
+            setIsEditing(true);
+            setCurrentUser(user);
+            setFormData({
+                userName: user.userName || '',
+                email: user.email || '',
+                phoneNumber: user.phoneNumber || '',
+                password: '',
+                roles: Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : ['Admin']
+            });
         } else {
-            setIsEditing(false); setCurrentUser(null); setFormData(initialFormState);
+            setIsEditing(false);
+            setCurrentUser(null);
+            setFormData(initialFormState);
         }
         setShowModal(true);
+    };
+
+    const handleClose = () => {
+        setShowModal(false);
+        setIsEditing(false);
+        setCurrentUser(null);
+        setFormData(initialFormState);
+        setError(null);
     };
 
     const handleDelete = async (id, name) => {
@@ -89,17 +120,28 @@ const UsersManagementPage = () => {
         e.preventDefault();
         setSubmitting(true);
 
+        const form = e.currentTarget;
+        const targetUser = currentUser;
+        const isEditMode = isEditing && !!targetUser;
+
+        // Read directly from current form inputs to eliminate any stale state closure
+        const payloadData = {
+            userName: form.elements.userName ? form.elements.userName.value : formData.userName,
+            email: form.elements.email ? form.elements.email.value : formData.email,
+            phoneNumber: form.elements.phoneNumber ? form.elements.phoneNumber.value : formData.phoneNumber,
+            password: form.elements.password ? form.elements.password.value : formData.password,
+            roles: form.elements.roles ? [form.elements.roles.value] : formData.roles
+        };
+
         try {
-            if (isEditing) {
-                await userService.updateUser(currentUser.id, formData);
+            if (isEditMode) {
+                await userService.updateUser(targetUser.id, payloadData);
             } else {
-                await userService.createUser(formData);
+                await userService.createUser(payloadData);
             }
-            await loadUsers(isEditing ? currentPage : 1, true);
-            setShowModal(false);
-            setCurrentUser(null);
-            setFormData(initialFormState);
-            toast.success(isEditing ? "تم تعديل المستخدم بنجاح." : "تم إضافة المستخدم بنجاح.");
+            await loadUsers(isEditMode ? currentPage : 1, true);
+            toast.success(isEditMode ? "تم تعديل المستخدم بنجاح." : "تم إضافة المستخدم بنجاح.");
+            handleClose();
         } catch (err) {
             const errorMessage = extractErrorMessage(err) || err.userFriendlyMessage || err.message;
             if (errorMessage && typeof errorMessage === 'string' && errorMessage.includes('\n')) {
@@ -191,23 +233,23 @@ const UsersManagementPage = () => {
             )}
 
 
-            <Modal show={showModal} onHide={() => setShowModal(false)} centered dir="rtl">
+            <Modal show={showModal} onHide={handleClose} centered dir="rtl" key={currentUser?.id ? `edit-${currentUser.id}` : 'create-user'}>
                 {/* تم اختصار كود المودال لأنه متجاوب بطبيعته */}
                 <Modal.Header className="border-0 pb-0"><Modal.Title className="fw-bold fs-5">{isEditing ? "تعديل مستخدم" : "إضافة مستخدم"}</Modal.Title></Modal.Header>
                 <Form onSubmit={handleSubmit}>
                     <Modal.Body className="pt-3">
-                        <Form.Group className="mb-3" controlId="formUserName"><Form.Label className="small fw-bold">اسم المستخدم</Form.Label><Form.Control type="text" required value={formData.userName} onChange={e => setFormData({...formData, userName: e.target.value})} /></Form.Group>
-                        <Form.Group className="mb-3" controlId="formEmail"><Form.Label className="small fw-bold">البريد الإلكتروني</Form.Label><Form.Control type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Form.Group>
-                        <Form.Group className="mb-3" controlId="formPhoneNumber"><Form.Label className="small fw-bold">رقم الهاتف</Form.Label><Form.Control type="tel" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value})} /></Form.Group>
+                        <Form.Group className="mb-3" controlId="formUserName"><Form.Label className="small fw-bold">اسم المستخدم</Form.Label><Form.Control name="userName" type="text" required value={formData.userName} onChange={e => setFormData(prev => ({ ...prev, userName: e.target.value }))} /></Form.Group>
+                        <Form.Group className="mb-3" controlId="formEmail"><Form.Label className="small fw-bold">البريد الإلكتروني</Form.Label><Form.Control name="email" type="email" required value={formData.email} onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} /></Form.Group>
+                        <Form.Group className="mb-3" controlId="formPhoneNumber"><Form.Label className="small fw-bold">رقم الهاتف</Form.Label><Form.Control name="phoneNumber" type="tel" value={formData.phoneNumber} onChange={e => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))} /></Form.Group>
                         {!isEditing && (
-                            <Form.Group className="mb-3" controlId="formPassword"><Form.Label className="small fw-bold">كلمة المرور</Form.Label><Form.Control type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></Form.Group>
+                            <Form.Group className="mb-3" controlId="formPassword"><Form.Label className="small fw-bold">كلمة المرور</Form.Label><Form.Control name="password" type="password" required value={formData.password} onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))} /></Form.Group>
                         )}
-                        <Form.Group className="mb-3" controlId="formRoles"><Form.Label className="small fw-bold">الدور</Form.Label><Form.Select value={formData.roles[0]} onChange={e => setFormData({...formData, roles: [e.target.value]})}>
+                        <Form.Group className="mb-3" controlId="formRoles"><Form.Label className="small fw-bold">الدور</Form.Label><Form.Select name="roles" value={formData.roles[0]} onChange={e => setFormData(prev => ({ ...prev, roles: [e.target.value] }))}>
                             <option value="Admin">Admin</option><option value="User">User</option><option value="SuperAdmin">SuperAdmin</option><option value="ServiceAdmin">ServiceAdmin</option>
                         </Form.Select></Form.Group>
                     </Modal.Body>
                     <Modal.Footer className="border-0 pt-0">
-                        <Button variant="light" onClick={() => setShowModal(false)}>إلغاء</Button>
+                        <Button variant="light" onClick={handleClose}>إلغاء</Button>
                         <Button variant="primary" type="submit" disabled={submitting}>{submitting ? "حفظ..." : "تأكيد"}</Button>
                     </Modal.Footer>
                 </Form>

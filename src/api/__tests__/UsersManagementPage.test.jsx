@@ -214,5 +214,91 @@ describe('UsersManagementPage Mutation Synchronization', () => {
             expect(screen.getByText('لا يوجد مستخدمين.')).toBeInTheDocument();
         });
     });
+
+    it('strictly submits User B data and id when editing User B after User A without stale state bleeding', async () => {
+        const twoUsers = {
+            items: [
+                { id: 'user-a', userName: 'user.alpha', email: 'alpha@example.com', phoneNumber: '111', roles: ['Admin'] },
+                { id: 'user-b', userName: 'user.beta', email: 'beta@example.com', phoneNumber: '222', roles: ['User'] }
+            ],
+            totalCount: 2,
+            totalPages: 1
+        };
+
+        userService.getAllUsers.mockResolvedValue(twoUsers);
+        userService.updateUser.mockResolvedValue({ success: true });
+
+        const { fireEvent } = await import('@testing-library/react');
+        render(<UsersManagementPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('user.alpha')).toBeInTheDocument();
+            expect(screen.getByText('user.beta')).toBeInTheDocument();
+        });
+
+        const rows = screen.getByRole('table').querySelectorAll('tbody tr');
+        const editButtonA = rows[0].querySelector('td button:first-child');
+        const editButtonB = rows[1].querySelector('td button:first-child');
+
+        // 1. Open User A and cancel
+        fireEvent.click(editButtonA);
+        expect(screen.getByLabelText('اسم المستخدم')).toHaveValue('user.alpha');
+        fireEvent.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+        // 2. Open User B
+        fireEvent.click(editButtonB);
+        expect(screen.getByLabelText('اسم المستخدم')).toHaveValue('user.beta');
+
+        // Modify User B
+        fireEvent.change(screen.getByLabelText('اسم المستخدم'), { target: { value: 'user.beta.updated' } });
+
+        // Submit form
+        fireEvent.click(screen.getByRole('button', { name: 'تأكيد' }));
+
+        await waitFor(() => {
+            expect(userService.updateUser).toHaveBeenCalledTimes(1);
+            expect(userService.updateUser).toHaveBeenCalledWith('user-b', expect.objectContaining({
+                userName: 'user.beta.updated',
+                email: 'beta@example.com'
+            }));
+            // Ensure User A's id was never called
+            expect(userService.updateUser).not.toHaveBeenCalledWith('user-a', expect.anything());
+        });
+    });
+
+    it('clears form state and selectedUser when modal is closed', async () => {
+        const usersData = {
+            items: [
+                { id: 'user-a', userName: 'user.alpha', email: 'alpha@example.com', phoneNumber: '111', roles: ['Admin'] }
+            ],
+            totalCount: 1,
+            totalPages: 1
+        };
+
+        userService.getAllUsers.mockResolvedValue(usersData);
+
+        const { fireEvent } = await import('@testing-library/react');
+        render(<UsersManagementPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('user.alpha')).toBeInTheDocument();
+        });
+
+        // Edit user A
+        const editBtn = screen.getByRole('table').querySelector('tbody tr td button:first-child');
+        fireEvent.click(editBtn);
+        expect(screen.getByLabelText('اسم المستخدم')).toHaveValue('user.alpha');
+
+        // Cancel modal
+        fireEvent.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+        // Open Create User modal
+        fireEvent.click(screen.getByRole('button', { name: /إضافة مستخدم/i }));
+
+        // Ensure input fields are empty/initial, not retaining User A's data
+        expect(screen.getByLabelText('اسم المستخدم')).toHaveValue('');
+        expect(screen.getByLabelText('البريد الإلكتروني')).toHaveValue('');
+    });
 });
+
 
