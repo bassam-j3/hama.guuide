@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge } from 'react-bootstrap';
 import { PersonPlus, PencilSquare, Trash, PersonBadge, Envelope, Telephone, ShieldLock, People } from 'react-bootstrap-icons';
-import { userService } from '../../api/services/userService';
+import { userService, normalizeRoleToString } from '../../api/services/userService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import Pagination from '../../components/common/Pagination';
@@ -54,12 +54,13 @@ const UsersManagementPage = () => {
 
     useEffect(() => {
         if (currentUser) {
+            const roleStr = normalizeRoleToString(currentUser.roles ?? currentUser.role);
             setFormData({
                 userName: currentUser.userName || '',
                 email: currentUser.email || '',
                 phoneNumber: currentUser.phoneNumber || '',
                 password: '',
-                roles: Array.isArray(currentUser.roles) && currentUser.roles.length > 0 ? currentUser.roles : ['Admin']
+                roles: [roleStr]
             });
         } else {
             setFormData(initialFormState);
@@ -75,6 +76,7 @@ const UsersManagementPage = () => {
     const handleShow = (user = null) => {
         setError(null);
         if (user) {
+            const roleStr = normalizeRoleToString(user.roles ?? user.role);
             setIsEditing(true);
             setCurrentUser(user);
             setFormData({
@@ -82,7 +84,7 @@ const UsersManagementPage = () => {
                 email: user.email || '',
                 phoneNumber: user.phoneNumber || '',
                 password: '',
-                roles: Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : ['Admin']
+                roles: [roleStr]
             });
         } else {
             setIsEditing(false);
@@ -120,17 +122,16 @@ const UsersManagementPage = () => {
         e.preventDefault();
         setSubmitting(true);
 
-        const form = e.currentTarget;
         const targetUser = currentUser;
         const isEditMode = isEditing && !!targetUser;
 
-        // Read directly from current form inputs to eliminate any stale state closure
+        // Strictly submit from controlled formData state
         const payloadData = {
-            userName: form.elements.userName ? form.elements.userName.value : formData.userName,
-            email: form.elements.email ? form.elements.email.value : formData.email,
-            phoneNumber: form.elements.phoneNumber ? form.elements.phoneNumber.value : formData.phoneNumber,
-            password: form.elements.password ? form.elements.password.value : formData.password,
-            roles: form.elements.roles ? [form.elements.roles.value] : formData.roles
+            userName: formData.userName,
+            email: formData.email,
+            phoneNumber: formData.phoneNumber,
+            password: formData.password,
+            roles: formData.roles
         };
 
         try {
@@ -201,9 +202,16 @@ const UsersManagementPage = () => {
                                                 </div>
                                             </td>
                                             <td>
-                                                {user.roles && user.roles.map((role, idx) => (
-                                                    <Badge key={idx} bg={role === 'SuperAdmin' ? 'danger' : (role === 'Admin' ? 'success' : (role === 'ServiceAdmin' ? 'warning text-dark' : 'secondary'))} className="me-1 px-2 py-1">{role}</Badge>
-                                                ))}
+                                                {(() => {
+                                                    const rawRoles = user.roles ?? user.role;
+                                                    const roleList = Array.isArray(rawRoles) ? rawRoles : (rawRoles !== undefined && rawRoles !== null ? [rawRoles] : ['Admin']);
+                                                    return roleList.map((role, idx) => {
+                                                        const roleName = normalizeRoleToString(role);
+                                                        return (
+                                                            <Badge key={idx} bg={roleName === 'SuperAdmin' ? 'danger' : (roleName === 'Admin' ? 'success' : (roleName === 'ServiceAdmin' ? 'warning text-dark' : 'secondary'))} className="me-1 px-2 py-1">{roleName}</Badge>
+                                                        );
+                                                    });
+                                                })()}
                                             </td>
                                             <td className="d-none d-md-table-cell">
                                                 <div className="d-flex flex-column small">
@@ -244,7 +252,7 @@ const UsersManagementPage = () => {
                         {!isEditing && (
                             <Form.Group className="mb-3" controlId="formPassword"><Form.Label className="small fw-bold">كلمة المرور</Form.Label><Form.Control name="password" type="password" required value={formData.password} onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))} /></Form.Group>
                         )}
-                        <Form.Group className="mb-3" controlId="formRoles"><Form.Label className="small fw-bold">الدور</Form.Label><Form.Select name="roles" value={formData.roles[0]} onChange={e => setFormData(prev => ({ ...prev, roles: [e.target.value] }))}>
+                        <Form.Group className="mb-3" controlId="formRoles"><Form.Label className="small fw-bold">الدور</Form.Label><Form.Select name="roles" value={formData.roles[0] || 'Admin'} onChange={e => setFormData(prev => ({ ...prev, roles: [e.target.value] }))}>
                             <option value="Admin">Admin</option><option value="User">User</option><option value="SuperAdmin">SuperAdmin</option><option value="ServiceAdmin">ServiceAdmin</option>
                         </Form.Select></Form.Group>
                     </Modal.Body>

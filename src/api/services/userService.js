@@ -2,6 +2,32 @@ import axiosInstance from '../axiosConfig';
 
 const API_BASE = '/Users';
 
+export const ROLE_INT_MAP = {
+    1: 'ServiceAdmin',
+    2: 'Admin',
+    3: 'SuperAdmin',
+    0: 'Admin',
+    4: 'User'
+};
+
+export const normalizeRoleToString = (val) => {
+    if (val === undefined || val === null) return 'Admin';
+    if (Array.isArray(val)) {
+        return val.length > 0 ? normalizeRoleToString(val[0]) : 'Admin';
+    }
+    if (typeof val === 'number') {
+        return ROLE_INT_MAP[val] || (val === 1 ? 'ServiceAdmin' : 'Admin');
+    }
+    if (typeof val === 'string') {
+        const num = Number(val);
+        if (!isNaN(num) && val.trim() !== '') {
+            return ROLE_INT_MAP[num] || val;
+        }
+        return val;
+    }
+    return 'Admin';
+};
+
 const formatUserPayload = (userData) => {
     let phoneNumber = userData.phoneNumber;
     if (!phoneNumber || (typeof phoneNumber === 'string' && phoneNumber.trim() === '')) {
@@ -10,9 +36,12 @@ const formatUserPayload = (userData) => {
         phoneNumber = phoneNumber.replace(/[\s+]/g, '');
     }
 
-    const roles = Array.isArray(userData.roles) && userData.roles.length > 0 
-        ? userData.roles[0] 
-        : (userData.roles || 'Admin');
+    let roles = 'Admin';
+    if (userData.roles !== undefined && userData.roles !== null) {
+        roles = normalizeRoleToString(userData.roles);
+    } else if (userData.role !== undefined && userData.role !== null) {
+        roles = normalizeRoleToString(userData.role);
+    }
 
     return {
         userName: userData.userName,

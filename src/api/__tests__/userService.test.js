@@ -103,5 +103,46 @@ describe('userService', () => {
             expect(result).toEqual(mockPaginatedData);
         });
     });
+
+    describe('normalizeRoleToString & integer roles mapping', () => {
+        it('correctly maps integer array [1] to ServiceAdmin and stringifies payload in updateUser', async () => {
+            axiosInstance.put.mockResolvedValueOnce({ data: { id: 'u1' } });
+
+            const userData = {
+                userName: 'serviceUser',
+                email: 'service@example.com',
+                phoneNumber: '123456',
+                roles: [1]
+            };
+
+            await userService.updateUser('u1', userData);
+
+            expect(axiosInstance.put).toHaveBeenCalledWith('/Users/u1', {
+                userName: 'serviceUser',
+                email: 'service@example.com',
+                phoneNumber: '123456',
+                roles: 'ServiceAdmin'
+            });
+        });
+
+        it('correctly maps singular role integer property role: [1] to ServiceAdmin', async () => {
+            axiosInstance.put.mockResolvedValueOnce({ data: { id: 'u2' } });
+
+            const userData = {
+                userName: 'serviceUser2',
+                email: 'service2@example.com',
+                role: [1]
+            };
+
+            await userService.updateUser('u2', userData);
+
+            expect(axiosInstance.put).toHaveBeenCalledWith('/Users/u2', {
+                userName: 'serviceUser2',
+                email: 'service2@example.com',
+                phoneNumber: null,
+                roles: 'ServiceAdmin'
+            });
+        });
+    });
 });
 

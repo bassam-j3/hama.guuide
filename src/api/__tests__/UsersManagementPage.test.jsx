@@ -4,14 +4,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import UsersManagementPage from '../../pages/admin/UsersManagementPage';
 import { userService } from '../services/userService';
 
-vi.mock('../services/userService', () => ({
-    userService: {
-        getAllUsers: vi.fn(),
-        createUser: vi.fn(),
-        updateUser: vi.fn(),
-        deleteUser: vi.fn()
-    }
-}));
+vi.mock('../services/userService', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        userService: {
+            getAllUsers: vi.fn(),
+            createUser: vi.fn(),
+            updateUser: vi.fn(),
+            deleteUser: vi.fn()
+        }
+    };
+});
 
 describe('UsersManagementPage Paginated Rendering', () => {
     beforeEach(() => {
@@ -298,6 +302,45 @@ describe('UsersManagementPage Mutation Synchronization', () => {
         // Ensure input fields are empty/initial, not retaining User A's data
         expect(screen.getByLabelText('اسم المستخدم')).toHaveValue('');
         expect(screen.getByLabelText('البريد الإلكتروني')).toHaveValue('');
+    });
+
+    it('correctly maps integer role [1] to ServiceAdmin in table badge, select dropdown, and submit payload', async () => {
+        const userWithIntRole = {
+            items: [
+                { id: 'user-service-admin', userName: 'bassam.service', email: 'service@example.com', phoneNumber: '555', role: [1] }
+            ],
+            totalCount: 1,
+            totalPages: 1
+        };
+
+        userService.getAllUsers.mockResolvedValue(userWithIntRole);
+        userService.updateUser.mockResolvedValue({ success: true });
+
+        const { fireEvent } = await import('@testing-library/react');
+        render(<UsersManagementPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('bassam.service')).toBeInTheDocument();
+            // Role badge rendered in table should show 'ServiceAdmin', not '1'
+            expect(screen.getByText('ServiceAdmin')).toBeInTheDocument();
+        });
+
+        // Click edit
+        const editBtn = screen.getByRole('table').querySelector('tbody tr td button:first-child');
+        fireEvent.click(editBtn);
+
+        // Select element should have default value 'ServiceAdmin'
+        const roleSelect = screen.getByLabelText('الدور');
+        expect(roleSelect).toHaveValue('ServiceAdmin');
+
+        // Submit form without changing role
+        fireEvent.click(screen.getByRole('button', { name: 'تأكيد' }));
+
+        await waitFor(() => {
+            expect(userService.updateUser).toHaveBeenCalledWith('user-service-admin', expect.objectContaining({
+                roles: ['ServiceAdmin']
+            }));
+        });
     });
 });
 
