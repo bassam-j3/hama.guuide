@@ -304,12 +304,13 @@ describe('UsersManagementPage Mutation Synchronization', () => {
         expect(screen.getByLabelText('البريد الإلكتروني')).toHaveValue('');
     });
 
-    it('correctly maps integer role [1] to ServiceAdmin in table badge, select dropdown, and submit payload', async () => {
+    it('correctly maps integer role [2] to ServiceAdmin and [1] to Admin in table badge, select dropdown, and submit payload', async () => {
         const userWithIntRole = {
             items: [
-                { id: 'user-service-admin', userName: 'bassam.service', email: 'service@example.com', phoneNumber: '555', role: [1] }
+                { id: 'user-service-admin', userName: 'bassam.service', email: 'service@example.com', phoneNumber: '555', role: [2] },
+                { id: 'user-admin', userName: 'bassam.admin', email: 'admin@example.com', phoneNumber: '777', role: [1] }
             ],
-            totalCount: 1,
+            totalCount: 2,
             totalPages: 1
         };
 
@@ -321,12 +322,15 @@ describe('UsersManagementPage Mutation Synchronization', () => {
 
         await waitFor(() => {
             expect(screen.getByText('bassam.service')).toBeInTheDocument();
-            // Role badge rendered in table should show 'ServiceAdmin', not '1'
+            // Role badge rendered in table should show 'ServiceAdmin', not '2'
             expect(screen.getByText('ServiceAdmin')).toBeInTheDocument();
+            // Role badge for Admin should show 'Admin', not '1'
+            expect(screen.getByText('Admin')).toBeInTheDocument();
         });
 
-        // Click edit
-        const editBtn = screen.getByRole('table').querySelector('tbody tr td button:first-child');
+        // Click edit on ServiceAdmin
+        const rows = screen.getByRole('table').querySelectorAll('tbody tr');
+        const editBtn = rows[0].querySelector('td button:first-child');
         fireEvent.click(editBtn);
 
         // Select element should have default value 'ServiceAdmin'

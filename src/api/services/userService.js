@@ -2,13 +2,15 @@ import axiosInstance from '../axiosConfig';
 
 const API_BASE = '/Users';
 
-export const ROLE_INT_MAP = {
-    1: 'ServiceAdmin',
-    2: 'Admin',
+export const ROLE_MAP = {
+    1: 'Admin',
+    2: 'ServiceAdmin',
     3: 'SuperAdmin',
-    0: 'Admin',
-    4: 'User'
+    4: 'User',
+    0: 'Admin'
 };
+
+export const ROLE_INT_MAP = ROLE_MAP;
 
 export const normalizeRoleToString = (val) => {
     if (val === undefined || val === null) return 'Admin';
@@ -16,12 +18,12 @@ export const normalizeRoleToString = (val) => {
         return val.length > 0 ? normalizeRoleToString(val[0]) : 'Admin';
     }
     if (typeof val === 'number') {
-        return ROLE_INT_MAP[val] || (val === 1 ? 'ServiceAdmin' : 'Admin');
+        return ROLE_MAP[val] || 'Admin';
     }
     if (typeof val === 'string') {
         const num = Number(val);
-        if (!isNaN(num) && val.trim() !== '') {
-            return ROLE_INT_MAP[num] || val;
+        if (!isNaN(num) && val.trim() !== '' && ROLE_MAP[num]) {
+            return ROLE_MAP[num];
         }
         return val;
     }

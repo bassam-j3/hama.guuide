@@ -105,12 +105,12 @@ describe('userService', () => {
     });
 
     describe('normalizeRoleToString & integer roles mapping', () => {
-        it('correctly maps integer array [1] to ServiceAdmin and stringifies payload in updateUser', async () => {
+        it('correctly maps integer array [1] to Admin and stringifies payload in updateUser', async () => {
             axiosInstance.put.mockResolvedValueOnce({ data: { id: 'u1' } });
 
             const userData = {
-                userName: 'serviceUser',
-                email: 'service@example.com',
+                userName: 'adminUser',
+                email: 'admin@example.com',
                 phoneNumber: '123456',
                 roles: [1]
             };
@@ -118,6 +118,26 @@ describe('userService', () => {
             await userService.updateUser('u1', userData);
 
             expect(axiosInstance.put).toHaveBeenCalledWith('/Users/u1', {
+                userName: 'adminUser',
+                email: 'admin@example.com',
+                phoneNumber: '123456',
+                roles: 'Admin'
+            });
+        });
+
+        it('correctly maps integer array [2] to ServiceAdmin and stringifies payload in updateUser', async () => {
+            axiosInstance.put.mockResolvedValueOnce({ data: { id: 'u2' } });
+
+            const userData = {
+                userName: 'serviceUser',
+                email: 'service@example.com',
+                phoneNumber: '123456',
+                roles: [2]
+            };
+
+            await userService.updateUser('u2', userData);
+
+            expect(axiosInstance.put).toHaveBeenCalledWith('/Users/u2', {
                 userName: 'serviceUser',
                 email: 'service@example.com',
                 phoneNumber: '123456',
@@ -125,22 +145,22 @@ describe('userService', () => {
             });
         });
 
-        it('correctly maps singular role integer property role: [1] to ServiceAdmin', async () => {
-            axiosInstance.put.mockResolvedValueOnce({ data: { id: 'u2' } });
+        it('correctly maps singular role integer property role: [3] to SuperAdmin', async () => {
+            axiosInstance.put.mockResolvedValueOnce({ data: { id: 'u3' } });
 
             const userData = {
-                userName: 'serviceUser2',
-                email: 'service2@example.com',
-                role: [1]
+                userName: 'superUser',
+                email: 'super@example.com',
+                role: [3]
             };
 
-            await userService.updateUser('u2', userData);
+            await userService.updateUser('u3', userData);
 
-            expect(axiosInstance.put).toHaveBeenCalledWith('/Users/u2', {
-                userName: 'serviceUser2',
-                email: 'service2@example.com',
+            expect(axiosInstance.put).toHaveBeenCalledWith('/Users/u3', {
+                userName: 'superUser',
+                email: 'super@example.com',
                 phoneNumber: null,
-                roles: 'ServiceAdmin'
+                roles: 'SuperAdmin'
             });
         });
     });
