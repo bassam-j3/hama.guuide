@@ -82,6 +82,26 @@ describe('userService', () => {
                 roles: 'Admin'
             });
         });
+
+        it('strictly uses configured axiosInstance and passes config without stripping headers', async () => {
+            axiosInstance.put.mockResolvedValueOnce({ data: { id: 'u2' } });
+
+            const userData = {
+                userName: 'testUser2',
+                email: 'test2@example.com',
+                roles: 'Admin'
+            };
+            const customConfig = { headers: { 'X-Custom-Header': 'test-value' } };
+
+            await userService.updateUser('u2', userData, customConfig);
+
+            expect(axiosInstance.put).toHaveBeenCalledWith('/Users/u2', {
+                userName: 'testUser2',
+                email: 'test2@example.com',
+                phoneNumber: null,
+                roles: 'Admin'
+            }, customConfig);
+        });
     });
 
     describe('getAllUsers', () => {

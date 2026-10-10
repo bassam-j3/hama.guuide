@@ -67,7 +67,6 @@ export const userService = {
         return { items, totalCount, totalPages, page: currentPage, pageSize };
     },
 
-
     getUserById: async (id) => {
         const response = await axiosInstance.get(`${API_BASE}/${id}`);
         return response.data;
@@ -82,9 +81,12 @@ export const userService = {
         return response.data;
     },
 
-    updateUser: async (id, userData) => {
+    updateUser: async (id, userData, config = {}) => {
         const payload = formatUserPayload(userData);
-        const response = await axiosInstance.put(`${API_BASE}/${id}`, payload);
+        // Strictly uses configured axiosInstance ensuring request interceptor attaches Authorization header
+        const response = Object.keys(config).length > 0
+            ? await axiosInstance.put(`${API_BASE}/${id}`, payload, config)
+            : await axiosInstance.put(`${API_BASE}/${id}`, payload);
         return response.data;
     },
 
@@ -93,4 +95,6 @@ export const userService = {
         return response.data;
     }
 };
+
+export default userService;
 

@@ -1,4 +1,5 @@
 import axiosInstance from '../axiosConfig';
+import { setAuthData, clearAuthData } from './tokenService';
 
 const AUTH_BASE = '/auth';
 export const STORAGE_KEY_PREFIX = "oidc.user:hama.guide:admin"; // قمنا بتصدير هذا المفتاح ليستخدمه Axios
@@ -28,11 +29,13 @@ export const authService = {
       token_type: "Bearer"
     };
     sessionStorage.setItem(STORAGE_KEY_PREFIX, JSON.stringify(authData));
+    setAuthData(authData);
     return authData;
   },
 
   logout: () => {
     sessionStorage.removeItem(STORAGE_KEY_PREFIX);
+    clearAuthData();
   },
 
   register: async (userData) => {

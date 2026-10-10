@@ -41,8 +41,16 @@ export const axiosUploadInstance = axios.create({
 // ==========================================
 const requestInterceptor = (config) => {
     const authData = getAuthData(); 
-    if (authData && authData.access_token) {
-        config.headers.Authorization = `Bearer ${authData.access_token}`;
+    const token = authData?.access_token || authData?.token || authData?.accessToken;
+    if (token) {
+        if (!config.headers) {
+            config.headers = {};
+        }
+        if (typeof config.headers.set === 'function') {
+            config.headers.set('Authorization', `Bearer ${token}`);
+        } else {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
     }
     return config;
 };
